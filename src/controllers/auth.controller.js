@@ -113,6 +113,7 @@ export const login = async (req, res) => {
     delete userResponse.password;
 
     res.json({
+      success: true,
       msg: "Login successful",
       token,
       user: userResponse,
