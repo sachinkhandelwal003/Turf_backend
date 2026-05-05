@@ -13,17 +13,26 @@ export const createTurf = async (req, res) => {
     }
 
     // Handle multiple image uploads
-    if (req.files && req.files.length > 0) {
-      body.images = req.files.map((file) => `/uploads/${file.filename}`);
-    } else if (body.existingImages) {
-      try {
-        body.images = JSON.parse(body.existingImages);
-      } catch (e) {
-        body.images = [];
+    if (req.files) {
+      if (req.files.images) {
+        body.images = req.files.images.map((file) => `/uploads/${file.filename}`);
       }
-    } else {
-      body.images = [];
+      if (req.files.logo) {
+        body.logo = `/uploads/${req.files.logo[0].filename}`;
+      }
     }
+
+    if (body.existingImages) {
+      try {
+        const existing = JSON.parse(body.existingImages);
+        body.images = [...(body.images || []), ...existing];
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!body.images) body.images = [];
+    if (!body.logo) body.logo = "";
 
     // Remove existingImages from body
     delete body.existingImages;
@@ -31,7 +40,7 @@ export const createTurf = async (req, res) => {
     // Parse JSON strings for nested objects and arrays if they come from multipart/form-data
     const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount"];
     fieldsToParse.forEach((field) => {
-      if (typeof body[field] === "string" && body[field].trim() !== "") {
+      if (body[field] && typeof body[field] === "string" && body[field].trim() !== "") {
         try {
           body[field] = JSON.parse(body[field]);
         } catch (e) {
@@ -55,6 +64,12 @@ export const createTurf = async (req, res) => {
     });
   } catch (err) {
     console.error("Create Turf Error:", err);
+    // Return specific validation errors if available
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: Object.values(err.errors).map(val => val.message).join(', ') 
+      });
+    }
     res.status(500).json({ error: err.message || "Server Error while creating turf" });
   }
 };
@@ -162,9 +177,17 @@ export const updateTurf = async (req, res) => {
       currentImages = turf.images || [];
     }
 
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map((file) => `/uploads/${file.filename}`);
-      body.images = [...currentImages, ...newImages];
+    if (req.files) {
+      if (req.files.images) {
+        const newImages = req.files.images.map((file) => `/uploads/${file.filename}`);
+        body.images = [...currentImages, ...newImages];
+      } else {
+        body.images = currentImages;
+      }
+
+      if (req.files.logo) {
+        body.logo = `/uploads/${req.files.logo[0].filename}`;
+      }
     } else {
       body.images = currentImages;
     }
@@ -175,7 +198,7 @@ export const updateTurf = async (req, res) => {
     // Parse JSON strings for nested objects and arrays
     const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount"];
     fieldsToParse.forEach((field) => {
-      if (typeof body[field] === "string" && body[field].trim() !== "") {
+      if (body[field] && typeof body[field] === "string" && body[field].trim() !== "") {
         try {
           body[field] = JSON.parse(body[field]);
         } catch (e) {

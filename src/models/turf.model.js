@@ -60,6 +60,10 @@ const turfSchema = new mongoose.Schema(
       enum: ["Football", "Cricket", "Tennis", "Badminton", "Basketball", "Padel"],
     },
     amenities: [String],
+    logo: {
+      type: String,
+      default: "",
+    },
     images: [String],
     description: {
       type: String,
