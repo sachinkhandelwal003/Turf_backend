@@ -7,6 +7,13 @@ import Role from "../models/auth/role.model.js";
 // @access  Private (Admin/Superadmin)
 export const getDashboardStats = async (req, res) => {
   try {
+    const isSuperadmin = req.user.role === "superadmin";
+    const userId = req.user.id;
+
+    // Filters for Admin
+    const turfQuery = isSuperadmin ? {} : { owner: userId };
+    const userQuery = isSuperadmin ? {} : { createdBy: userId };
+
     const [
       totalUsers,
       totalAdmins,
@@ -17,24 +24,24 @@ export const getDashboardStats = async (req, res) => {
       rejectedTurfs,
       totalRoles
     ] = await Promise.all([
-      User.countDocuments({ role: "user" }),
-      User.countDocuments({ role: "admin" }),
-      User.countDocuments({ role: "superadmin" }),
-      Turf.countDocuments(),
-      Turf.countDocuments({ status: { $in: ["pending", null, undefined] } }),
-      Turf.countDocuments({ status: "approved" }),
-      Turf.countDocuments({ status: "rejected" }),
+      User.countDocuments({ ...userQuery, role: "user" }),
+      User.countDocuments({ ...userQuery, role: "admin" }),
+      User.countDocuments({ ...userQuery, role: "superadmin" }),
+      Turf.countDocuments(turfQuery),
+      Turf.countDocuments({ ...turfQuery, status: { $in: ["pending", null, undefined] } }),
+      Turf.countDocuments({ ...turfQuery, status: "approved" }),
+      Turf.countDocuments({ ...turfQuery, status: "rejected" }),
       Role.countDocuments()
     ]);
 
     // Get recent turfs
-    const recentTurfs = await Turf.find()
+    const recentTurfs = await Turf.find(turfQuery)
       .sort("-createdAt")
       .limit(10)
       .populate("owner", "name email");
 
     // Get recent users
-    const recentUsers = await User.find()
+    const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
       .limit(10)
       .select("-password");

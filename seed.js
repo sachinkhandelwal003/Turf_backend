@@ -51,8 +51,7 @@ const seedDatabase = async () => {
           "view_venues",
           "add_venue",
           "edit_venue",
-          "manage_turfs",
-          "manage_users"
+          "manage_turfs"
         ],
         description: "Venue owner/manager"
       },
@@ -85,7 +84,7 @@ const seedDatabase = async () => {
       phone: "9988776655",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "manage_users"],
+      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs"],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner1@turf.com"
