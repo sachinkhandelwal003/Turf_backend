@@ -1,5 +1,6 @@
 import User from "../models/auth/user.model.js";
 import Role from "../models/auth/role.model.js";
+import Permission from "../models/auth/permission.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -138,10 +139,45 @@ export const getProfile = async (req, res) => {
   }
 };
 
-// GET ALL USERS (Admin only)
+// BATCH UPDATE USERS (Admin/Superadmin only)
+export const batchUpdateUsers = async (req, res) => {
+  try {
+    const { updates } = req.body; // Array of { userId, role, permissions, isActive }
+
+    const results = await Promise.all(updates.map(async (update) => {
+      const { userId, ...data } = update;
+      
+      const userToUpdate = await User.findById(userId);
+      if (!userToUpdate) return { userId, success: false, error: "Not found" };
+
+      // Check ownership if not superadmin
+      if (req.user.role !== "superadmin" && userToUpdate.createdBy?.toString() !== req.user.id) {
+        return { userId, success: false, error: "Not authorized" };
+      }
+
+      const updated = await User.findByIdAndUpdate(userId, data, { new: true }).select("-password");
+      return { userId, success: true, user: updated };
+    }));
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error("Batch Update Users Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// GET ALL USERS (Admin/Superadmin only)
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    let query = {};
+    
+    // If user is admin, they can only see users they created
+    if (req.user.role === "admin") {
+      query.createdBy = req.user.id;
+    }
+    // If superadmin, they can see everyone (no query filter)
+
+    const users = await User.find(query).select("-password").populate("createdBy", "name");
     res.json({ success: true, users });
   } catch (err) {
     console.error("Get All Users Error:", err);
@@ -149,30 +185,45 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// UPDATE USER ROLE & PERMISSIONS (Superadmin only)
+// UPDATE USER ROLE & PERMISSIONS (Admin/Superadmin only)
 export const updateUserRBAC = async (req, res) => {
   try {
     const { userId } = req.params;
     const { role, permissions, isActive, name, email, phone } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { role, permissions, isActive, name, email, phone },
-      { new: true }
-    ).select("-password");
-
-    if (!user) {
+    const userToUpdate = await User.findById(userId);
+    if (!userToUpdate) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    res.json({ success: true, msg: "User updated successfully", user });
+    // Check ownership if not superadmin
+    if (req.user.role !== "superadmin" && userToUpdate.createdBy?.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Not authorized to update this user" });
+    }
+
+    const updateData = { role, isActive, name, email, phone };
+    if (permissions) {
+      updateData.permissions = typeof permissions === 'string' ? JSON.parse(permissions) : permissions;
+    }
+
+    if (req.file) {
+      updateData.profilePhoto = `/uploads/${req.file.filename}`;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select("-password");
+
+    res.json({ success: true, msg: "User updated successfully", user: updatedUser });
   } catch (err) {
     console.error("Update User RBAC Error:", err);
     res.status(500).json({ error: "Server Error" });
   }
 };
 
-// CREATE USER (Superadmin only)
+// CREATE USER (Admin/Superadmin only)
 export const createUser = async (req, res) => {
   try {
     const { name, email, phone, password, role, permissions } = req.body;
@@ -185,14 +236,21 @@ export const createUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const userData = {
       name,
       email,
       phone,
       password: hashedPassword,
       role: role || "user",
-      permissions: permissions || []
-    });
+      permissions: permissions ? (typeof permissions === 'string' ? JSON.parse(permissions) : permissions) : [],
+      createdBy: req.user.id
+    };
+
+    if (req.file) {
+      userData.profilePhoto = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await User.create(userData);
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -204,7 +262,7 @@ export const createUser = async (req, res) => {
   }
 };
 
-// DELETE USER (Superadmin only)
+// DELETE USER (Admin/Superadmin only)
 export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -214,11 +272,17 @@ export const deleteUser = async (req, res) => {
       return res.status(400).json({ msg: "You cannot delete yourself" });
     }
 
-    const user = await User.findByIdAndDelete(userId);
-    if (!user) {
+    const userToDelete = await User.findById(userId);
+    if (!userToDelete) {
       return res.status(404).json({ msg: "User not found" });
     }
 
+    // Check ownership if not superadmin
+    if (req.user.role !== "superadmin" && userToDelete.createdBy?.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Not authorized to delete this user" });
+    }
+
+    await userToDelete.deleteOne();
     res.json({ success: true, msg: "User deleted successfully" });
   } catch (err) {
     console.error("Delete User Error:", err);
@@ -229,22 +293,65 @@ export const deleteUser = async (req, res) => {
 // GET ALL AVAILABLE PERMISSIONS
 export const getAllPermissions = async (req, res) => {
   try {
-    // We can define these in a config file later, but for now, we'll return the system-wide list
-    const permissions = [
-      "view_dashboard",
-      "manage_users",
-      "manage_roles",
-      "manage_permissions",
-      "view_profile",
-      "edit_profile",
-      "manage_settings",
-      "view_reports",
-      "manage_bookings",
-      "manage_turfs"
-    ];
+    const permissions = await Permission.find().sort({ name: 1 });
     res.json({ success: true, permissions });
   } catch (err) {
     console.error("Get Permissions Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+export const createPermission = async (req, res) => {
+  try {
+    const { name, slug, description } = req.body;
+    
+    const existing = await Permission.findOne({ $or: [{ name }, { slug }] });
+    if (existing) {
+      return res.status(400).json({ error: "Permission with this name or slug already exists" });
+    }
+
+    const permission = await Permission.create({ name, slug, description });
+    res.status(201).json({ success: true, permission });
+  } catch (err) {
+    console.error("Create Permission Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+export const updatePermission = async (req, res) => {
+  try {
+    const { permissionId } = req.params;
+    const { name, slug, description, isActive } = req.body;
+
+    const permission = await Permission.findByIdAndUpdate(
+      permissionId,
+      { name, slug, description, isActive },
+      { new: true }
+    );
+
+    if (!permission) {
+      return res.status(404).json({ error: "Permission not found" });
+    }
+
+    res.json({ success: true, permission });
+  } catch (err) {
+    console.error("Update Permission Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+export const deletePermission = async (req, res) => {
+  try {
+    const { permissionId } = req.params;
+    const permission = await Permission.findByIdAndDelete(permissionId);
+    
+    if (!permission) {
+      return res.status(404).json({ error: "Permission not found" });
+    }
+
+    res.json({ success: true, msg: "Permission deleted successfully" });
+  } catch (err) {
+    console.error("Delete Permission Error:", err);
     res.status(500).json({ error: "Server Error" });
   }
 };

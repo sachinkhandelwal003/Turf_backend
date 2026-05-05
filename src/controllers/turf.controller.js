@@ -57,11 +57,18 @@ export const createTurf = async (req, res) => {
 };
 
 // @desc    Get all turfs for the logged-in owner/admin
-// @route   GET /api/turfs/my-turfs
+// @route   GET /api/turfs/my/all
 // @access  Private (Admin/Superadmin)
 export const getMyTurfs = async (req, res) => {
   try {
-    const turfs = await Turf.find({ owner: req.user.id }).sort("-createdAt");
+    let query = { owner: req.user.id };
+    
+    // Superadmin can see all turfs
+    if (req.user.role === "superadmin") {
+      query = {};
+    }
+
+    const turfs = await Turf.find(query).sort("-createdAt").populate("owner", "name email");
     res.json({ success: true, count: turfs.length, turfs });
   } catch (err) {
     console.error("Get My Turfs Error:", err);
@@ -74,11 +81,20 @@ export const getMyTurfs = async (req, res) => {
 // @access  Public
 export const getTurfs = async (req, res) => {
   try {
-    const { city, sport, minPrice, maxPrice, rating } = req.query;
+    const { city, location, sport, minPrice, maxPrice, rating } = req.query;
     
     let query = { isActive: true };
 
-    if (city) query["location.city"] = new RegExp(city, "i");
+    // Search by city or location across multiple fields
+    const searchLocation = city || location;
+    if (searchLocation) {
+      query.$or = [
+        { "location.city": new RegExp(searchLocation, "i") },
+        { "location.address": new RegExp(searchLocation, "i") },
+        { "location.landmark": new RegExp(searchLocation, "i") }
+      ];
+    }
+
     if (sport) query.sports = sport;
     if (minPrice || maxPrice) {
       query.pricePerHour = {};
@@ -104,6 +120,11 @@ export const getTurfById = async (req, res) => {
     if (!turf) {
       return res.status(404).json({ msg: "Turf not found" });
     }
+    
+    // If user is logged in as admin (and not superadmin), 
+    // we can still let them SEE it because it's public, 
+    // but the list and edit forms should only show their own.
+    
     res.json({ success: true, turf });
   } catch (err) {
     console.error("Get Turf Error:", err);
@@ -120,8 +141,8 @@ export const updateTurf = async (req, res) => {
     if (!turf) return res.status(404).json({ msg: "Turf not found" });
 
     // Check ownership
-    if (turf.owner.toString() !== req.user.id && req.user.role !== "superadmin") {
-      return res.status(401).json({ msg: "Not authorized to update this turf" });
+    if (req.user.role !== "superadmin" && turf.owner.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Not authorized to update this turf" });
     }
 
     const body = { ...req.body };
@@ -188,8 +209,8 @@ export const deleteTurf = async (req, res) => {
     if (!turf) return res.status(404).json({ msg: "Turf not found" });
 
     // Check ownership
-    if (turf.owner.toString() !== req.user.id && req.user.role !== "superadmin") {
-      return res.status(401).json({ msg: "Not authorized to delete this turf" });
+    if (req.user.role !== "superadmin" && turf.owner.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Not authorized to delete this turf" });
     }
 
     await turf.deleteOne();

@@ -35,6 +35,14 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    profilePhoto: {
+      type: String,
+      default: "",
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );

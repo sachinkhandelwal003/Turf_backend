@@ -5,7 +5,11 @@ import {
   getProfile, 
   getAllUsers, 
   updateUserRBAC, 
+  batchUpdateUsers,
   getAllPermissions,
+  createPermission,
+  updatePermission,
+  deletePermission,
   getAllRoles,
   createRole,
   updateRole,
@@ -15,6 +19,7 @@ import {
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
+import { upload } from "../middleware/multer.middleware.js";
 
 const router = express.Router();
 
@@ -24,10 +29,16 @@ router.get("/profile", authMiddleware, getProfile);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkRole(["admin", "superadmin"]), getAllUsers);
-router.post("/users", authMiddleware, checkRole(["superadmin"]), createUser);
-router.put("/users/:userId/rbac", authMiddleware, checkRole(["superadmin"]), updateUserRBAC);
-router.delete("/users/:userId", authMiddleware, checkRole(["superadmin"]), deleteUser);
-router.get("/permissions", authMiddleware, checkRole(["superadmin"]), getAllPermissions);
+router.post("/users", authMiddleware, checkRole(["admin", "superadmin"]), upload.single("profilePhoto"), createUser);
+router.post("/users/batch", authMiddleware, checkRole(["admin", "superadmin"]), batchUpdateUsers);
+router.put("/users/:userId/rbac", authMiddleware, checkRole(["admin", "superadmin"]), upload.single("profilePhoto"), updateUserRBAC);
+router.delete("/users/:userId", authMiddleware, checkRole(["admin", "superadmin"]), deleteUser);
+
+// Permission CRUD
+router.get("/permissions", authMiddleware, checkRole(["superadmin", "admin"]), getAllPermissions);
+router.post("/permissions", authMiddleware, checkRole(["superadmin"]), createPermission);
+router.put("/permissions/:permissionId", authMiddleware, checkRole(["superadmin"]), updatePermission);
+router.delete("/permissions/:permissionId", authMiddleware, checkRole(["superadmin"]), deletePermission);
 
 // Role CRUD
 router.get("/roles", authMiddleware, checkRole(["superadmin", "admin"]), getAllRoles);
