@@ -43,6 +43,9 @@ export const createTurf = async (req, res) => {
     const turf = await Turf.create({
       ...body,
       owner: req.user.id,
+      status: req.user.role === "superadmin" ? "approved" : "pending",
+      approvedBy: req.user.role === "superadmin" ? req.user.id : null,
+      approvedAt: req.user.role === "superadmin" ? new Date() : null,
     });
 
     res.status(201).json({ 
@@ -83,7 +86,7 @@ export const getTurfs = async (req, res) => {
   try {
     const { city, location, sport, minPrice, maxPrice, rating } = req.query;
     
-    let query = { isActive: true };
+    let query = { isActive: true, status: "approved" };
 
     // Search by city or location across multiple fields
     const searchLocation = city || location;
@@ -197,6 +200,40 @@ export const updateTurf = async (req, res) => {
   } catch (err) {
     console.error("Update Turf Error:", err);
     res.status(500).json({ error: err.message || "Server Error" });
+  }
+};
+
+// @desc    Approve or reject a turf
+// @route   PATCH /api/turfs/:id/status
+// @access  Private (Superadmin)
+export const updateTurfStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const turf = await Turf.findById(req.params.id);
+    if (!turf) {
+      return res.status(404).json({ error: "Turf not found" });
+    }
+
+    turf.status = status;
+    if (status === "approved") {
+      turf.approvedBy = req.user.id;
+      turf.approvedAt = new Date();
+    }
+
+    await turf.save();
+
+    res.json({
+      success: true,
+      message: `Turf ${status} successfully`,
+      turf
+    });
+  } catch (err) {
+    console.error("Update Turf Status Error:", err);
+    res.status(500).json({ error: "Server Error" });
   }
 };
 

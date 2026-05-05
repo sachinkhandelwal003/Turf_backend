@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth.routes.js";
 import turfRoutes from "./routes/turf.routes.js";
 import masterRoutes from "./routes/master.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 const app = express();
 
@@ -11,7 +12,7 @@ const app = express();
 app.use(cors({
   origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3005"],
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
@@ -24,5 +25,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/turfs", turfRoutes);
 app.use("/api/masters", masterRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 export default app;
