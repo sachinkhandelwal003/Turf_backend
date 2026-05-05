@@ -5,6 +5,7 @@ import turfRoutes from "./routes/turf.routes.js";
 import masterRoutes from "./routes/master.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import bookingRoutes from "./routes/booking.routes.js";
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.use("/api/turfs", turfRoutes);
 app.use("/api/masters", masterRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 export default app;
