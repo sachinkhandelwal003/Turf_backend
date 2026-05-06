@@ -23,6 +23,9 @@ export const updateSettings = async (req, res) => {
     if (typeof updateData.appleLogin === 'string') {
       updateData.appleLogin = JSON.parse(updateData.appleLogin);
     }
+    if (typeof updateData.heroBanner === 'string') {
+      updateData.heroBanner = JSON.parse(updateData.heroBanner);
+    }
 
     // Handle File Uploads
     if (req.files) {
@@ -32,6 +35,16 @@ export const updateSettings = async (req, res) => {
       if (req.files.backendLogo) {
         updateData.backendLogo = `/uploads/${req.files.backendLogo[0].filename}`;
       }
+      if (req.files.image) {
+        if (!updateData.heroBanner) updateData.heroBanner = {};
+        updateData.heroBanner.image = `/uploads/${req.files.image[0].filename}`;
+      } else if (req.body.heroBannerImage) {
+        if (!updateData.heroBanner) updateData.heroBanner = {};
+        updateData.heroBanner.image = req.body.heroBannerImage;
+      }
+    } else if (req.body.heroBannerImage) {
+      if (!updateData.heroBanner) updateData.heroBanner = {};
+      updateData.heroBanner.image = req.body.heroBannerImage;
     }
 
     let settings = await Settings.findOne();
