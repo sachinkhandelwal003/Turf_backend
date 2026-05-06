@@ -12,7 +12,18 @@ export const getMasters = async (req, res) => {
 export const createMaster = async (req, res) => {
   try {
     const { name, category } = req.body;
-    const master = await Master.create({ name, category });
+    let imageData = "";
+    
+    if (req.file) {
+      imageData = `/uploads/${req.file.filename}`;
+    }
+
+    const master = await Master.create({ 
+      name, 
+      category,
+      image: imageData
+    });
+    
     res.status(201).json({ success: true, master });
   } catch (err) {
     if (err.code === 11000) {

@@ -9,7 +9,8 @@ const router = express.Router();
 router.get("/", getSettings);
 router.post("/", authMiddleware, checkRole(["superadmin"]), upload.fields([
   { name: "frontendLogo", maxCount: 1 },
-  { name: "backendLogo", maxCount: 1 }
+  { name: "backendLogo", maxCount: 1 },
+  { name: "image", maxCount: 1 }
 ]), updateSettings);
 
 export default router;

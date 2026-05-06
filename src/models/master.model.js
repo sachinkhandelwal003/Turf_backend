@@ -16,6 +16,10 @@ const masterSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    image: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
