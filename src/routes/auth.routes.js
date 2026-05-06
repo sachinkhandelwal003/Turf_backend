@@ -3,6 +3,7 @@ import {
   register, 
   login, 
   getProfile, 
+  updateProfile,
   getAllUsers, 
   updateUserRBAC, 
   batchUpdateUsers,
@@ -15,7 +16,8 @@ import {
   updateRole,
   deleteRole,
   createUser,
-  deleteUser
+  deleteUser,
+  impersonate
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
@@ -25,7 +27,9 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/impersonate", authMiddleware, checkRole(["superadmin"]), impersonate);
 router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, upload.single("profilePhoto"), updateProfile);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkRole(["admin", "superadmin"]), getAllUsers);

@@ -125,6 +125,80 @@ export const login = async (req, res) => {
   }
 };
 
+// IMPERSONATE (Login as another user)
+// @access Private (Superadmin only)
+export const impersonate = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ msg: "User ID is required" });
+    }
+
+    // Check if target user exists
+    const targetUser = await User.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ msg: "Target user not found" });
+    }
+
+    // Generate token for the target user
+    const token = jwt.sign(
+      {
+        id: targetUser._id,
+        role: targetUser.role,
+        permissions: targetUser.permissions || [],
+        isImpersonated: true,
+        impersonatorId: req.user.id
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" } // Impersonation tokens should have shorter lifespan
+    );
+
+    const userResponse = targetUser.toObject();
+    delete userResponse.password;
+
+    res.json({
+      msg: `Logged in as ${targetUser.name}`,
+      token,
+      user: userResponse,
+    });
+  } catch (err) {
+    console.error("Impersonation Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// UPDATE PROFILE
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+    const updateData = { name, phone };
+
+    if (req.file) {
+      updateData.profilePhoto = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updateData },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      msg: "Profile updated successfully",
+      user,
+    });
+  } catch (err) {
+    console.error("Update Profile Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
 // GET PROFILE
 export const getProfile = async (req, res) => {
   try {

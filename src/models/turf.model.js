@@ -21,6 +21,13 @@ const turfSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    peakHourSurcharge: {
+      type: Number,
+      default: 0,
+    },
+    surfaceType: {
+      type: String,
+    },
     rates: [
       {
         day: { type: String, enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
@@ -49,6 +56,14 @@ const turfSchema = new mongoose.Schema(
         courtType: { type: String },
       }
     ],
+    priceHikes: [
+      {
+        day: String,
+        startTime: String,
+        endTime: String,
+        hikePercentage: Number,
+      },
+    ],
     unavailableDates: [
       {
         date: Date,
@@ -57,7 +72,6 @@ const turfSchema = new mongoose.Schema(
     ],
     sports: {
       type: [String],
-      enum: ["Football", "Cricket", "Tennis", "Badminton", "Basketball", "Padel"],
     },
     amenities: [String],
     logo: {

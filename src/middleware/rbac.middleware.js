@@ -33,6 +33,11 @@ export const checkRole = (roles) => {
         return res.status(401).json({ msg: "Authentication required" });
       }
 
+      // Superadmin bypass
+      if (user.role === "superadmin") {
+        return next();
+      }
+
       if (roles.includes(user.role)) {
         return next();
       }

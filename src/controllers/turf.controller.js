@@ -8,7 +8,7 @@ export const createTurf = async (req, res) => {
     const body = { ...req.body };
 
     // Validation
-    if (!body.name || !body.pricePerHour) {
+    if (!body.name || body.pricePerHour === undefined || body.pricePerHour === "") {
       return res.status(400).json({ error: "Name and Price per hour are required" });
     }
 
@@ -38,7 +38,7 @@ export const createTurf = async (req, res) => {
     delete body.existingImages;
 
     // Parse JSON strings for nested objects and arrays if they come from multipart/form-data
-    const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount"];
+    const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount", "priceHikes"];
     fieldsToParse.forEach((field) => {
       if (body[field] && typeof body[field] === "string" && body[field].trim() !== "") {
         try {
@@ -48,6 +48,14 @@ export const createTurf = async (req, res) => {
         }
       }
     });
+
+    // Ensure pricePerHour and peakHourSurcharge are numbers
+    if (body.pricePerHour !== undefined && body.pricePerHour !== "") {
+      body.pricePerHour = Number(body.pricePerHour);
+    }
+    if (body.peakHourSurcharge !== undefined && body.peakHourSurcharge !== "") {
+      body.peakHourSurcharge = Number(body.peakHourSurcharge);
+    }
 
     const turf = await Turf.create({
       ...body,
@@ -196,7 +204,7 @@ export const updateTurf = async (req, res) => {
     delete body.existingImages;
 
     // Parse JSON strings for nested objects and arrays
-    const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount"];
+    const fieldsToParse = ["location", "sports", "amenities", "rates", "operatingHours", "availableSlots", "courts", "unavailableDates", "rating", "reviewsCount", "priceHikes"];
     fieldsToParse.forEach((field) => {
       if (body[field] && typeof body[field] === "string" && body[field].trim() !== "") {
         try {
@@ -207,10 +215,18 @@ export const updateTurf = async (req, res) => {
       }
     });
 
+    // Ensure pricePerHour and peakHourSurcharge are numbers
+    if (body.pricePerHour !== undefined && body.pricePerHour !== "") {
+      body.pricePerHour = Number(body.pricePerHour);
+    }
+    if (body.peakHourSurcharge !== undefined && body.peakHourSurcharge !== "") {
+      body.peakHourSurcharge = Number(body.peakHourSurcharge);
+    }
+
     // Remove appendImages from body before saving to DB
     delete body.appendImages;
 
-    turf = await Turf.findByIdAndUpdate(req.params.id, body, { 
+    const updatedTurf = await Turf.findByIdAndUpdate(req.params.id, body, { 
       new: true,
       runValidators: true 
     });
@@ -218,7 +234,7 @@ export const updateTurf = async (req, res) => {
     res.json({ 
       success: true, 
       message: "Turf updated successfully",
-      turf 
+      turf: updatedTurf 
     });
   } catch (err) {
     console.error("Update Turf Error:", err);
