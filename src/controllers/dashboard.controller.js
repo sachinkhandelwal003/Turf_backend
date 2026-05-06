@@ -2,6 +2,7 @@ import User from "../models/auth/user.model.js";
 import Turf from "../models/turf.model.js";
 import Role from "../models/auth/role.model.js";
 import Booking from "../models/booking.model.js";
+import Tournament from "../models/tournament.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -13,6 +14,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Filters for Admin
     const turfQuery = isSuperadmin ? {} : { owner: userId };
+    const tournamentQuery = isSuperadmin ? {} : { owner: userId };
     const userQuery = isSuperadmin ? {} : { createdBy: userId };
 
     // Get turf IDs for non-superadmin to filter bookings
@@ -35,7 +37,11 @@ export const getDashboardStats = async (req, res) => {
       totalBookings,
       confirmedBookings,
       pendingBookings,
-      cancelledBookings
+      cancelledBookings,
+      totalTournaments,
+      pendingTournaments,
+      approvedTournaments,
+      rejectedTournaments
     ] = await Promise.all([
       User.countDocuments({ ...userQuery, role: "user" }),
       User.countDocuments({ ...userQuery, role: "admin" }),
@@ -48,7 +54,11 @@ export const getDashboardStats = async (req, res) => {
       Booking.countDocuments(bookingQuery),
       Booking.countDocuments({ ...bookingQuery, status: "confirmed" }),
       Booking.countDocuments({ ...bookingQuery, status: "pending" }),
-      Booking.countDocuments({ ...bookingQuery, status: "cancelled" })
+      Booking.countDocuments({ ...bookingQuery, status: "cancelled" }),
+      Tournament.countDocuments(tournamentQuery),
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: { $in: ["pending", null, undefined] } }),
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
 
     // Get recent turfs
@@ -83,6 +93,12 @@ export const getDashboardStats = async (req, res) => {
           confirmed: confirmedBookings,
           pending: pendingBookings,
           cancelled: cancelledBookings
+        },
+        tournaments: {
+          total: totalTournaments,
+          pending: pendingTournaments,
+          approved: approvedTournaments,
+          rejected: rejectedTournaments
         },
         roles: totalRoles
       },

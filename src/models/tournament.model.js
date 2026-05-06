@@ -89,6 +89,11 @@ const tournamentSchema = new mongoose.Schema(
       enum: ["upcoming", "ongoing", "completed", "cancelled", "postponed", "finished"],
       default: "upcoming",
     },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
     image: {
       type: String,
     },
@@ -99,10 +104,6 @@ const tournamentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    isApproved: {
-      type: Boolean,
-      default: false,
-    },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -110,7 +111,7 @@ const tournamentSchema = new mongoose.Schema(
     approvedAt: {
       type: Date,
     },
-    createdBy: {
+    owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
