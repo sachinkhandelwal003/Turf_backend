@@ -12,7 +12,7 @@ const app = express();
 
 // --- Middleware ---
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3005"],
+  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3005"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -24,11 +24,11 @@ app.use("/uploads", express.static("public/uploads"));
 
 // --- Routes ---
 app.use("/api/auth", authRoutes);
+app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/turfs", turfRoutes);
 app.use("/api/masters", masterRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use("/api/tournaments", tournamentRoutes);
 
 export default app;
