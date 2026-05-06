@@ -1,6 +1,7 @@
 import User from "../models/auth/user.model.js";
 import Turf from "../models/turf.model.js";
 import Role from "../models/auth/role.model.js";
+import Booking from "../models/booking.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -14,6 +15,14 @@ export const getDashboardStats = async (req, res) => {
     const turfQuery = isSuperadmin ? {} : { owner: userId };
     const userQuery = isSuperadmin ? {} : { createdBy: userId };
 
+    // Get turf IDs for non-superadmin to filter bookings
+    let userTurfIds = [];
+    if (!isSuperadmin) {
+      const userTurfs = await Turf.find({ owner: userId }).select('_id');
+      userTurfIds = userTurfs.map(t => t._id);
+    }
+    const bookingQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
+
     const [
       totalUsers,
       totalAdmins,
@@ -22,7 +31,11 @@ export const getDashboardStats = async (req, res) => {
       pendingTurfs,
       approvedTurfs,
       rejectedTurfs,
-      totalRoles
+      totalRoles,
+      totalBookings,
+      confirmedBookings,
+      pendingBookings,
+      cancelledBookings
     ] = await Promise.all([
       User.countDocuments({ ...userQuery, role: "user" }),
       User.countDocuments({ ...userQuery, role: "admin" }),
@@ -31,7 +44,11 @@ export const getDashboardStats = async (req, res) => {
       Turf.countDocuments({ ...turfQuery, status: { $in: ["pending", null, undefined] } }),
       Turf.countDocuments({ ...turfQuery, status: "approved" }),
       Turf.countDocuments({ ...turfQuery, status: "rejected" }),
-      Role.countDocuments()
+      Role.countDocuments(),
+      Booking.countDocuments(bookingQuery),
+      Booking.countDocuments({ ...bookingQuery, status: "confirmed" }),
+      Booking.countDocuments({ ...bookingQuery, status: "pending" }),
+      Booking.countDocuments({ ...bookingQuery, status: "cancelled" })
     ]);
 
     // Get recent turfs
@@ -60,6 +77,12 @@ export const getDashboardStats = async (req, res) => {
           pending: pendingTurfs,
           approved: approvedTurfs,
           rejected: rejectedTurfs
+        },
+        bookings: {
+          total: totalBookings,
+          confirmed: confirmedBookings,
+          pending: pendingBookings,
+          cancelled: cancelledBookings
         },
         roles: totalRoles
       },

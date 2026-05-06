@@ -248,14 +248,55 @@ export const updateBookingStatus = async (req, res) => {
 // @access  Private (Superadmin only)
 export const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate("turf", "name location images owner")
-      .populate("user", "name email phone")
-      .sort("-createdAt");
+    const { page = 1, limit = 10, search = "", status = "all" } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = {};
+
+    // Status filter
+    if (status !== "all") {
+      query.status = status;
+    }
+
+    // Search filter (User name/email or Turf name)
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      
+      // Find matching users and turfs first
+      const [users, turfs] = await Promise.all([
+        User.find({ $or: [{ name: searchRegex }, { email: searchRegex }] }).select("_id"),
+        Turf.find({ name: searchRegex }).select("_id")
+      ]);
+
+      const userIds = users.map(u => u._id);
+      const turfIds = turfs.map(t => t._id);
+
+      query.$or = [
+        { user: { $in: userIds } },
+        { turf: { $in: turfIds } },
+        { bookingId: searchRegex }
+      ];
+    }
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate("turf", "name location images owner")
+        .populate("user", "name email phone profilePhoto")
+        .sort("-createdAt")
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Booking.countDocuments(query)
+    ]);
+
+    // Filter out bookings where turf was deleted (orphans)
+    const validBookings = bookings.filter(b => b.turf !== null);
 
     res.json({
       success: true,
-      bookings,
+      bookings: validBookings,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: parseInt(page)
     });
   } catch (err) {
     console.error("Get All Bookings Error:", err);
@@ -268,19 +309,64 @@ export const getAllBookings = async (req, res) => {
 // @access  Private (Admin only)
 export const getAdminTurfBookings = async (req, res) => {
   try {
+    const { page = 1, limit = 10, search = "", status = "all" } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     // 1. Find all turfs owned by this admin
     const myTurfs = await Turf.find({ owner: req.user.id }).select("_id");
-    const turfIds = myTurfs.map(t => t._id);
+    const myTurfIds = myTurfs.map(t => t._id);
 
-    // 2. Find all bookings for these turfs
-    const bookings = await Booking.find({ turf: { $in: turfIds } })
-      .populate("turf", "name location images")
-      .populate("user", "name email phone")
-      .sort("-createdAt");
+    let query = { turf: { $in: myTurfIds } };
+
+    // Status filter
+    if (status !== "all") {
+      query.status = status;
+    }
+
+    // Search filter (User name/email or Turf name)
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      
+      // Find matching users and turfs (within admin's own turfs) first
+      const [users, turfs] = await Promise.all([
+        User.find({ $or: [{ name: searchRegex }, { email: searchRegex }] }).select("_id"),
+        Turf.find({ name: searchRegex, _id: { $in: myTurfIds } }).select("_id")
+      ]);
+
+      const userIds = users.map(u => u._id);
+      const turfIds = turfs.map(t => t._id);
+
+      query.$and = [
+        { turf: { $in: myTurfIds } },
+        {
+          $or: [
+            { user: { $in: userIds } },
+            { turf: { $in: turfIds } },
+            { bookingId: searchRegex }
+          ]
+        }
+      ];
+    }
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate("turf", "name location images")
+        .populate("user", "name email phone profilePhoto")
+        .sort("-createdAt")
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Booking.countDocuments(query)
+    ]);
+
+    // Filter out bookings where turf was deleted (orphans)
+    const validBookings = bookings.filter(b => b.turf !== null);
 
     res.json({
       success: true,
-      bookings,
+      bookings: validBookings,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: parseInt(page)
     });
   } catch (err) {
     console.error("Get Admin Turf Bookings Error:", err);

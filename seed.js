@@ -6,6 +6,7 @@ import Role from "./src/models/auth/role.model.js";
 import Permission from "./src/models/auth/permission.model.js";
 import Master from "./src/models/master.model.js";
 import Turf from "./src/models/turf.model.js";
+import Booking from "./src/models/booking.model.js";
 
 dotenv.config();
 
@@ -21,7 +22,8 @@ const seedDatabase = async () => {
       Role.deleteMany({}),
       Permission.deleteMany({}),
       Master.deleteMany({}),
-      Turf.deleteMany({})
+      Turf.deleteMany({}),
+      Booking.deleteMany({})
     ]);
 
     // 1.5 Seed Permissions
@@ -34,6 +36,9 @@ const seedDatabase = async () => {
       { name: "Manage Settings", slug: "manage_settings", description: "Change system settings" },
       { name: "Manage Masters", slug: "manage_masters", description: "Manage sports, amenities, and court types" },
       { name: "Manage Turfs", slug: "manage_turfs", description: "Full access to turf management" },
+      { name: "View Bookings", slug: "view_bookings", description: "View all bookings" },
+      { name: "Manage Bookings", slug: "manage_bookings", description: "Manage all bookings" },
+      { name: "All Permissions", slug: "all", description: "Superuser access to all features" },
       { name: "View Venues", slug: "view_venues", description: "View list of venues" },
       { name: "Add Venue", slug: "add_venue", description: "Add new venues" },
       { name: "Edit Venue", slug: "edit_venue", description: "Edit existing venues" }
@@ -51,7 +56,9 @@ const seedDatabase = async () => {
           "view_venues",
           "add_venue",
           "edit_venue",
-          "manage_turfs"
+          "manage_turfs",
+          "view_bookings",
+          "manage_bookings"
         ],
         description: "Venue owner/manager"
       },
@@ -84,7 +91,7 @@ const seedDatabase = async () => {
       phone: "9988776655",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs"],
+      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings"],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner1@turf.com"
@@ -97,7 +104,7 @@ const seedDatabase = async () => {
       phone: "8877665544",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs"],
+      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings"],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner2@turf.com"
@@ -214,6 +221,59 @@ const seedDatabase = async () => {
         courts: [{ name: "Padel Court 1", courtType: "Synthetic" }]
       }
     ]);
+
+    // 6. Seed Sample Bookings
+    console.log("Seeding sample bookings...");
+    const allTurfs = await Turf.find();
+    const allUsers = await User.find({ role: "user" });
+
+    if (allTurfs.length > 0 && allUsers.length > 0) {
+      const sampleBookings = [
+        {
+          turf: allTurfs[0]._id,
+          user: allUsers[0]._id,
+          sport: "Cricket",
+          date: "2026-05-10",
+          startTime: "18:00",
+          endTime: "20:00",
+          courts: ["Main Court"],
+          price: 2400,
+          totalAmount: 2400,
+          bookingId: "TXN123456789",
+          status: "confirmed",
+          paymentStatus: "paid"
+        },
+        {
+          turf: allTurfs[1]._id,
+          user: allUsers[1]._id,
+          sport: "Football",
+          date: "2026-05-12",
+          startTime: "07:00",
+          endTime: "08:00",
+          courts: ["Field A"],
+          price: 1800,
+          totalAmount: 1800,
+          bookingId: "TXN987654321",
+          status: "pending",
+          paymentStatus: "pending"
+        },
+        {
+          turf: allTurfs[2]._id,
+          user: allUsers[0]._id,
+          sport: "Padel",
+          date: "2026-05-15",
+          startTime: "20:00",
+          endTime: "21:00",
+          courts: ["Padel Court 1"],
+          price: 1500,
+          totalAmount: 1500,
+          bookingId: "TXN555666777",
+          status: "completed",
+          paymentStatus: "paid"
+        }
+      ];
+      await Booking.insertMany(sampleBookings);
+    }
 
     console.log("Database seeded successfully!");
     process.exit(0);
