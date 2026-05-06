@@ -41,3 +41,26 @@ export const deleteMaster = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+export const updateMaster = async (req, res) => {
+  try {
+    const { name } = req.body;
+    let updateData = { name };
+    
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    
+    const master = await Master.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!master) {
+      return res.status(404).json({ error: "Master entry not found" });
+    }
+    
+    res.json({ success: true, master });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: "This master entry already exists in this category" });
+    }
+    res.status(500).json({ error: "Server Error" });
+  }
+};

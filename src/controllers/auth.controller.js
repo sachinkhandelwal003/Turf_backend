@@ -172,10 +172,22 @@ export const impersonate = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body;
-    const updateData = { name, phone };
+    const updateData = {};
 
-    if (req.file) {
-      updateData.profilePhoto = `/uploads/${req.file.filename}`;
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+
+    if (req.files) {
+      if (req.files.profilePhoto) {
+        updateData.profilePhoto = `/uploads/${req.files.profilePhoto[0].filename}`;
+      }
+      if (req.files.coverPhoto) {
+        updateData.coverPhoto = `/uploads/${req.files.coverPhoto[0].filename}`;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ msg: "No data provided for update" });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -236,6 +248,48 @@ export const batchUpdateUsers = async (req, res) => {
     res.json({ success: true, results });
   } catch (err) {
     console.error("Batch Update Users Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// UPDATE PASSWORD
+export const updatePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ msg: "All password fields are required" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ msg: "New passwords do not match" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: "Current password is incorrect" });
+    }
+
+    // Password strength validation
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        msg: "New password is too weak. Must contain 8+ characters, 1 uppercase, 1 number, and 1 special character." 
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({ success: true, msg: "Password updated successfully" });
+  } catch (err) {
+    console.error("Update Password Error:", err);
     res.status(500).json({ error: "Server Error" });
   }
 };
