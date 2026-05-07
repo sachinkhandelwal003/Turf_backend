@@ -84,6 +84,12 @@ const tournamentSchema = new mongoose.Schema(
         contact: String,
         altContact: String,
         address: String,
+        members: [
+          {
+            name: String,
+            role: String
+          }
+        ],
         status: { type: String, enum: ["pending", "confirmed", "rejected"], default: "pending" },
         registeredAt: { type: Date, default: Date.now },
         paymentDetails: {

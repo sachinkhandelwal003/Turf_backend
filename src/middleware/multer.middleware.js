@@ -3,10 +3,12 @@ import path from "path";
 import fs from "fs";
 
 // Ensure uploads directory exists using an absolute path to avoid permission issues
-const uploadDir = path.join(process.cwd(), "public/uploads");
+const uploadDir = path.resolve(process.cwd(), "public", "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+console.log("Multer upload directory set to:", uploadDir);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

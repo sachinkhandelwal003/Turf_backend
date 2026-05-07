@@ -241,7 +241,7 @@ export const deleteTournament = async (req, res) => {
 // @access  Private
 export const registerTournament = async (req, res) => {
   try {
-    const { teamName, captainName, email, phone, altPhone, address, paymentId, paymentMethod } = req.body;
+    const { teamName, captainName, email, phone, altPhone, address, members, paymentId, paymentMethod } = req.body;
     
     if (!teamName || !captainName || !phone) {
       return res.status(400).json({ error: "Team name, captain name and phone are required" });
@@ -272,6 +272,7 @@ export const registerTournament = async (req, res) => {
       contact: phone,
       altContact: altPhone,
       address: address,
+      members: members || [],
       status: tournament.entryFee > 0 ? "confirmed" : "pending", // If fee paid, confirm immediately
       registeredAt: new Date(),
       paymentDetails: tournament.entryFee > 0 ? {

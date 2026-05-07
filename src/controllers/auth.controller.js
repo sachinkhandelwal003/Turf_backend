@@ -81,8 +81,14 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ msg: "Email and password are required" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
     // check user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({ msg: "Invalid credentials" }); // Pro tip: Don't say "User not found", say "Invalid credentials"
     }
@@ -317,7 +323,7 @@ export const getAllUsers = async (req, res) => {
 export const updateUserRBAC = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { role, permissions, isActive, name, email, phone } = req.body;
+    const { role, permissions, isActive, name, email, phone, password } = req.body;
 
     const userToUpdate = await User.findById(userId);
     if (!userToUpdate) {
@@ -329,7 +335,18 @@ export const updateUserRBAC = async (req, res) => {
       return res.status(403).json({ msg: "Not authorized to update this user" });
     }
 
-    const updateData = { role, isActive, name, email, phone };
+    const updateData = {};
+    if (role) updateData.role = role;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (name) updateData.name = name;
+    if (email) updateData.email = email.toLowerCase().trim();
+    if (phone) updateData.phone = phone;
+
+    if (password && password.trim() !== "") {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
     if (permissions) {
       updateData.permissions = typeof permissions === 'string' ? JSON.parse(permissions) : permissions;
     }
@@ -340,7 +357,7 @@ export const updateUserRBAC = async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      updateData,
+      { $set: updateData },
       { new: true }
     ).select("-password");
 
@@ -356,8 +373,14 @@ export const createUser = async (req, res) => {
   try {
     const { name, email, phone, password, role, permissions } = req.body;
 
+    // Basic Validation
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ msg: "Name, email, phone and password are required" });
+    }
+
     // Check if user already exists
-    const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+    const cleanEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ $or: [{ email: cleanEmail }, { phone }] });
     if (existingUser) {
       return res.status(400).json({ msg: "User with this email or phone already exists" });
     }
@@ -366,7 +389,7 @@ export const createUser = async (req, res) => {
 
     const userData = {
       name,
-      email,
+      email: cleanEmail,
       phone,
       password: hashedPassword,
       role: role || "user",
