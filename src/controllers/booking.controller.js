@@ -25,7 +25,8 @@ export const createBooking = async (req, res) => {
     const pricePerSlot = Number(price) / slotList.length;
     const feePerSlot = (Number(convenienceFee) || 0) / slotList.length;
 
-    for (const currentSlot of slotList) {
+    for (let i = 0; i < slotList.length; i++) {
+      const currentSlot = slotList[i];
       const [startTime, endTime] = currentSlot.split(" - ");
       
       // Check if any of the selected courts are already booked for this slot
@@ -44,23 +45,9 @@ export const createBooking = async (req, res) => {
       }
 
       // Generate a unique booking ID
-      const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${createdBookings.length}`;
-      
-      const totalAmount = pricePerSlot + feePerSlot;
-        console.log("Found existing booking for slot:", currentSlot);
-        return res.status(400).json({ 
-          error: `One or more selected courts are already booked for the time slot: ${currentSlot}` 
-        });
-      }
-
-      // Generate a unique booking ID for each slot
       const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${i}`;
       
-      // Calculate individual slot price
-      const slotPrice = Number(price) / slotsToBook.length;
-      const slotConvenienceFee = (Number(convenienceFee) || 0) / slotsToBook.length;
-      const totalAmount = slotPrice + slotConvenienceFee;
-
+      const totalAmount = pricePerSlot + feePerSlot;
       let paidAmount = 0;
       if (paymentStrategy === 'full') {
         paidAmount = totalAmount;
@@ -77,7 +64,6 @@ export const createBooking = async (req, res) => {
         startTime,
         endTime,
         price: pricePerSlot,
-        price: slotPrice,
         courts,
         bookingId,
         totalAmount,
@@ -88,12 +74,6 @@ export const createBooking = async (req, res) => {
         splitWithSquad: splitWithSquad || false,
         numberOfPlayers: Number(numberOfPlayers) || 1,
         paymentStatus: 'pending'
-        convenienceFee: slotConvenienceFee,
-        paymentStrategy: paymentStrategy || 'full',
-        splitWithSquad: splitWithSquad || false,
-        numberOfPlayers: Number(numberOfPlayers) || 1,
-        paymentStatus: 'pending',
-        metadata: { transactionGroupId } // Store group ID for tracking
       };
 
       const booking = await Booking.create(bookingData);
@@ -102,12 +82,9 @@ export const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking(s) initiated successfully",
-      bookings: createdBookings,
-      booking: createdBookings[0] // For backward compatibility
       message: `${createdBookings.length} booking(s) initiated successfully`,
-      booking: createdBookings[0], // Return the first one for backward compatibility
-      bookings: createdBookings,
+      booking: createdBookings[0],
+      bookings: createdBookings
     });
   } catch (err) {
     console.error("Create Booking Error Details:", err);
@@ -160,14 +137,15 @@ export const getBookingById = async (req, res) => {
       paidAmount: bookings.reduce((sum, b) => sum + b.paidAmount, 0),
       balanceAmount: bookings.reduce((sum, b) => sum + b.balanceAmount, 0),
       convenienceFee: bookings.reduce((sum, b) => sum + b.convenienceFee, 0),
-      isMultiple: true,
-      slots: bookings.map(b => `${b.startTime} - ${b.endTime}`),
-      bookingCount: bookings.length
+      paymentStatus: bookings[0].paymentStatus,
+      status: bookings[0].status
     };
 
     res.json({
       success: true,
       booking: aggregated,
+      isMultiple: true,
+      originalBookings: bookings
     });
   } catch (err) {
     console.error("Get Booking By ID Error:", err);
@@ -183,29 +161,22 @@ export const processPayment = async (req, res) => {
     const { paymentMethod, paymentId } = req.body;
     const ids = req.params.id.split(',');
     
-    const result = await Booking.updateMany(
+    const results = await Booking.updateMany(
       { _id: { $in: ids } },
       { 
         $set: { 
           paymentStatus: 'paid',
           status: 'confirmed',
-          paymentMethod: paymentMethod,
-          paymentId: paymentId
+          paymentMethod,
+          paymentId
         } 
       }
     );
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Booking not found" });
-    }
-
-    const updatedBookings = await Booking.find({ _id: { $in: ids } });
-
     res.json({
       success: true,
       message: "Payment processed successfully",
-      booking: updatedBookings[0],
-      bookings: updatedBookings
+      count: results.modifiedCount
     });
   } catch (err) {
     console.error("Process Payment Error:", err);
@@ -382,8 +353,6 @@ export const checkAvailability = async (req, res) => {
 
     if (!turfId || !date) {
       return res.status(400).json({ error: "Turf ID and date are required" });
-    if (!turfId || !date) {
-      return res.status(400).json({ error: "Please provide turfId and date" });
     }
 
     const bookings = await Booking.find({
@@ -404,67 +373,22 @@ export const checkAvailability = async (req, res) => {
 
 // @desc    Get bookings for admin's turfs
 // @route   GET /api/bookings/admin/my-turfs
-// @access  Private (Admin only)
+// @access  Private (Admin)
 export const getAdminTurfBookings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status = "all" } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
     // 1. Find all turfs owned by this admin
     const myTurfs = await Turf.find({ owner: req.user.id }).select("_id");
-    const myTurfIds = myTurfs.map(t => t._id);
+    const turfIds = myTurfs.map(t => t._id);
 
-    let query = { turf: { $in: myTurfIds } };
-
-    // Status filter
-    if (status !== "all") {
-      query.status = status;
-    }
-
-    // Search filter (User name/email or Turf name)
-    if (search) {
-      const searchRegex = new RegExp(search, "i");
-      
-      // Find matching users and turfs (within admin's own turfs) first
-      const [users, turfs] = await Promise.all([
-        User.find({ $or: [{ name: searchRegex }, { email: searchRegex }] }).select("_id"),
-        Turf.find({ name: searchRegex, _id: { $in: myTurfIds } }).select("_id")
-      ]);
-
-      const userIds = users.map(u => u._id);
-      const turfIds = turfs.map(t => t._id);
-
-      query.$and = [
-        { turf: { $in: myTurfIds } },
-        {
-          $or: [
-            { user: { $in: userIds } },
-            { turf: { $in: turfIds } },
-            { bookingId: searchRegex }
-          ]
-        }
-      ];
-    }
-
-    const [bookings, total] = await Promise.all([
-      Booking.find(query)
-        .populate("turf", "name location images")
-        .populate("user", "name email phone profilePhoto")
-        .sort("-createdAt")
-        .skip(skip)
-        .limit(parseInt(limit)),
-      Booking.countDocuments(query)
-    ]);
-
-    // Filter out bookings where turf was deleted (orphans)
-    const validBookings = bookings.filter(b => b.turf !== null);
+    // 2. Find all bookings for these turfs
+    const bookings = await Booking.find({ turf: { $in: turfIds } })
+      .populate("turf", "name location images")
+      .populate("user", "name email phone profilePhoto")
+      .sort("-createdAt");
 
     res.json({
       success: true,
-      bookings: validBookings,
-      total,
-      pages: Math.ceil(total / limit),
-      currentPage: parseInt(page)
+      bookings
     });
   } catch (err) {
     console.error("Get Admin Turf Bookings Error:", err);

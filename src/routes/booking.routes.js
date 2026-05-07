@@ -17,7 +17,6 @@ const router = express.Router();
 
 router.get("/check-availability", checkAvailability);
 router.post("/", authMiddleware, createBooking);
-router.get("/check-availability", checkAvailability);
 router.get("/my", authMiddleware, getMyBookings);
 router.get("/all", authMiddleware, checkRole(["superadmin"]), getAllBookings);
 router.get("/admin/my-turfs", authMiddleware, checkRole(["admin"]), getAdminTurfBookings);
