@@ -13,22 +13,21 @@ export const createBooking = async (req, res) => {
       paymentStrategy, splitWithSquad, numberOfPlayers, convenienceFee 
     } = req.body;
 
-    // Support both single slot (string) and multiple slots (array)
-    const slotsToBook = slots || (slot ? [slot] : []);
+    // Support both single slot and multiple slots
+    const slotList = slots || (slot ? [slot] : []);
 
-    if (!turfId || !sport || !date || slotsToBook.length === 0 || !price || !courts || !courts.length) {
-      console.log("Missing required fields:", { turfId, sport, date, slotsToBook, price, courts });
-      return res.status(400).json({ error: "Please provide all required fields including courts and time slots" });
+    if (!turfId || !sport || !date || slotList.length === 0 || price === undefined || !courts || !courts.length) {
+      console.log("Missing required fields:", { turfId, sport, date, slotList, price, courts });
+      return res.status(400).json({ error: "Please provide all required fields including courts" });
     }
 
     const createdBookings = [];
-    const transactionGroupId = `GRP${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const pricePerSlot = Number(price) / slotList.length;
+    const feePerSlot = (Number(convenienceFee) || 0) / slotList.length;
 
-    for (let i = 0; i < slotsToBook.length; i++) {
-      const currentSlot = slotsToBook[i];
+    for (const currentSlot of slotList) {
       const [startTime, endTime] = currentSlot.split(" - ");
-      console.log("Processing slot:", { startTime, endTime });
-
+      
       // Check if any of the selected courts are already booked for this slot
       const existingBooking = await Booking.findOne({
         turf: turfId,
@@ -39,6 +38,15 @@ export const createBooking = async (req, res) => {
       });
 
       if (existingBooking) {
+        return res.status(400).json({ 
+          error: `Slot ${currentSlot} is already booked for one or more selected courts` 
+        });
+      }
+
+      // Generate a unique booking ID
+      const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${createdBookings.length}`;
+      
+      const totalAmount = pricePerSlot + feePerSlot;
         console.log("Found existing booking for slot:", currentSlot);
         return res.status(400).json({ 
           error: `One or more selected courts are already booked for the time slot: ${currentSlot}` 
@@ -68,12 +76,18 @@ export const createBooking = async (req, res) => {
         date,
         startTime,
         endTime,
+        price: pricePerSlot,
         price: slotPrice,
         courts,
         bookingId,
         totalAmount,
         paidAmount,
         balanceAmount,
+        convenienceFee: feePerSlot,
+        paymentStrategy: paymentStrategy || 'full',
+        splitWithSquad: splitWithSquad || false,
+        numberOfPlayers: Number(numberOfPlayers) || 1,
+        paymentStatus: 'pending'
         convenienceFee: slotConvenienceFee,
         paymentStrategy: paymentStrategy || 'full',
         splitWithSquad: splitWithSquad || false,
@@ -88,6 +102,9 @@ export const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: "Booking(s) initiated successfully",
+      bookings: createdBookings,
+      booking: createdBookings[0] // For backward compatibility
       message: `${createdBookings.length} booking(s) initiated successfully`,
       booking: createdBookings[0], // Return the first one for backward compatibility
       bookings: createdBookings,
@@ -362,6 +379,9 @@ export const getAllBookings = async (req, res) => {
 export const checkAvailability = async (req, res) => {
   try {
     const { turfId, date } = req.query;
+
+    if (!turfId || !date) {
+      return res.status(400).json({ error: "Turf ID and date are required" });
     if (!turfId || !date) {
       return res.status(400).json({ error: "Please provide turfId and date" });
     }

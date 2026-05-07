@@ -17,13 +17,14 @@ export const getDashboardStats = async (req, res) => {
     const tournamentQuery = isSuperadmin ? {} : { owner: userId };
     const userQuery = isSuperadmin ? {} : { createdBy: userId };
 
-    // Get turf IDs for non-superadmin to filter bookings
+    // Get turf IDs for non-superadmin to filter bookings and tournaments
     let userTurfIds = [];
     if (!isSuperadmin) {
       const userTurfs = await Turf.find({ owner: userId }).select('_id');
       userTurfIds = userTurfs.map(t => t._id);
     }
     const bookingQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
+    const tournamentQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
 
     const [
       totalUsers,
@@ -39,6 +40,7 @@ export const getDashboardStats = async (req, res) => {
       pendingBookings,
       cancelledBookings,
       totalTournaments,
+      pendingTournaments
       pendingTournaments,
       approvedTournaments,
       rejectedTournaments
@@ -56,6 +58,7 @@ export const getDashboardStats = async (req, res) => {
       Booking.countDocuments({ ...bookingQuery, status: "pending" }),
       Booking.countDocuments({ ...bookingQuery, status: "cancelled" }),
       Tournament.countDocuments(tournamentQuery),
+      Tournament.countDocuments({ ...tournamentQuery, status: "pending" })
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: { $in: ["pending", null, undefined] } }),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
@@ -96,6 +99,7 @@ export const getDashboardStats = async (req, res) => {
         },
         tournaments: {
           total: totalTournaments,
+          pending: pendingTournaments
           pending: pendingTournaments,
           approved: approvedTournaments,
           rejected: rejectedTournaments
