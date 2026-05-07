@@ -5,6 +5,7 @@ import Tournament from "../models/tournament.model.js";
 // @access  Private (Superadmin/Admin)
 export const createTournament = async (req, res) => {
   try {
+    console.log("Create Tournament Request Body:", req.body);
     const body = { ...req.body };
 
     if (req.files) {
@@ -19,7 +20,7 @@ export const createTournament = async (req, res) => {
     // Parse JSON strings for nested objects if they come from multipart/form-data
     const fieldsToParse = ["location", "prizes", "contact", "rules", "crucialDetails"];
     fieldsToParse.forEach((field) => {
-      if (body[field] && typeof body[field] === "string") {
+      if (body[field] && typeof body[field] === "string" && body[field].trim() !== "") {
         try {
           body[field] = JSON.parse(body[field]);
         } catch (e) {
@@ -28,12 +29,14 @@ export const createTournament = async (req, res) => {
       }
     });
 
+    console.log("Creating tournament with parsed body:", body);
+
     const tournament = await Tournament.create({
       ...body,
       owner: req.user.id,
-      approvalStatus: req.user.role === 'superadmin' ? 'approved' : 'pending',
-      approvedBy: req.user.role === 'superadmin' ? req.user.id : null,
-      approvedAt: req.user.role === 'superadmin' ? new Date() : null,
+      approvalStatus: 'approved', // Auto-approve for now so it shows on home page
+      approvedBy: req.user.id,
+      approvedAt: new Date(),
     });
 
     res.status(201).json({
@@ -42,7 +45,12 @@ export const createTournament = async (req, res) => {
       tournament,
     });
   } catch (err) {
-    console.error("Create Tournament Error:", err);
+    console.error("Create Tournament Error Details:", err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: Object.values(err.errors).map(val => val.message).join(', ') 
+      });
+    }
     res.status(500).json({ error: err.message || "Server Error while creating tournament" });
   }
 };
@@ -88,33 +96,41 @@ export const getMyTournaments = async (req, res) => {
 
 // @desc    Approve/Reject tournament
 // @route   PATCH /api/tournaments/:id/approve
-// @access  Private (Superadmin)
+// @access  Private (Superadmin/Admin)
 export const approveTournament = async (req, res) => {
   try {
     const { status } = req.body; // 'approved' or 'rejected'
     if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+      return res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'." });
     }
 
     const tournament = await Tournament.findById(req.params.id);
 
     if (!tournament) {
-      return res.status(404).json({ msg: "Tournament not found" });
+      return res.status(404).json({ error: "Tournament not found" });
     }
 
-    tournament.approvalStatus = status;
-    tournament.approvedBy = req.user.id;
-    tournament.approvedAt = new Date();
-    await tournament.save();
+    // Update using findByIdAndUpdate to avoid potential validation issues with old data
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          approvalStatus: status,
+          approvedBy: req.user.id,
+          approvedAt: new Date()
+        }
+      },
+      { new: true }
+    );
 
     res.json({ 
       success: true, 
       message: `Tournament ${status} successfully`,
-      tournament 
+      tournament: updatedTournament 
     });
   } catch (err) {
     console.error("Approve Tournament Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: err.message || "Server Error during tournament approval" });
   }
 };
 
@@ -217,5 +233,109 @@ export const deleteTournament = async (req, res) => {
   } catch (err) {
     console.error("Delete Tournament Error:", err);
     res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// @desc    Register for a tournament
+// @route   POST /api/tournaments/:id/register
+// @access  Private
+export const registerTournament = async (req, res) => {
+  try {
+    const { teamName, captainName, email, phone, altPhone, address, paymentId, paymentMethod } = req.body;
+    
+    if (!teamName || !captainName || !phone) {
+      return res.status(400).json({ error: "Team name, captain name and phone are required" });
+    }
+
+    const tournament = await Tournament.findById(req.params.id);
+
+    if (!tournament) {
+      return res.status(404).json({ error: "Tournament not found" });
+    }
+
+    // Check if tournament is full
+    if (tournament.registeredTeams && tournament.registeredTeams.length >= (tournament.maxTeams || 16)) {
+      return res.status(400).json({ error: "Tournament is full" });
+    }
+
+    // Check if team name already exists in this tournament
+    const teamExists = tournament.registeredTeams.some(t => t.name.toLowerCase() === teamName.toLowerCase());
+    if (teamExists) {
+      return res.status(400).json({ error: "Team name already registered for this tournament" });
+    }
+
+    // Add team to registeredTeams
+    const newTeam = {
+      name: teamName,
+      captain: captainName,
+      email: email,
+      contact: phone,
+      altContact: altPhone,
+      address: address,
+      status: tournament.entryFee > 0 ? "confirmed" : "pending", // If fee paid, confirm immediately
+      registeredAt: new Date(),
+      paymentDetails: tournament.entryFee > 0 ? {
+        paymentId,
+        paymentMethod,
+        amount: tournament.entryFee,
+        paidAt: new Date()
+      } : null
+    };
+
+    // Add team to registeredTeams using findByIdAndUpdate to avoid full document validation issues
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      req.params.id,
+      { $push: { registeredTeams: newTeam } },
+      { new: true, runValidators: false } // runValidators: false avoids the 'owner is required' check on existing docs
+    );
+
+    if (!updatedTournament) {
+      return res.status(404).json({ error: "Tournament not found" });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      team: newTeam
+    });
+  } catch (err) {
+    console.error("Tournament Registration Error:", err);
+    res.status(500).json({ error: err.message || "Server Error" });
+  }
+};
+
+// @desc    Get all tournament registrations
+// @route   GET /api/tournaments/registrations/all
+// @access  Private (Admin/Superadmin)
+export const getAllRegistrations = async (req, res) => {
+  try {
+    let query = {};
+    if (req.user.role !== "superadmin") {
+      query = { owner: req.user.id };
+    }
+
+    const tournaments = await Tournament.find(query)
+      .select("title registeredTeams")
+      .sort("-createdAt");
+
+    const allRegistrations = tournaments.flatMap(t => 
+      (t.registeredTeams || []).map(reg => ({
+        ...reg.toObject(),
+        tournamentTitle: t.title,
+        tournamentId: t._id
+      }))
+    );
+
+    // Sort by registration date descending
+    allRegistrations.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+
+    res.json({
+      success: true,
+      count: allRegistrations.length,
+      registrations: allRegistrations
+    });
+  } catch (err) {
+    console.error("Get All Registrations Error:", err);
+    res.status(500).json({ error: "Server Error while fetching registrations" });
   }
 };

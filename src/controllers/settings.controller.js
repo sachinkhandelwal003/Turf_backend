@@ -31,20 +31,31 @@ export const updateSettings = async (req, res) => {
     if (req.files) {
       if (req.files.frontendLogo) {
         updateData.frontendLogo = `/uploads/${req.files.frontendLogo[0].filename}`;
+      } else if (req.body.frontendLogo === "") {
+        updateData.frontendLogo = "";
       }
+
       if (req.files.backendLogo) {
         updateData.backendLogo = `/uploads/${req.files.backendLogo[0].filename}`;
+      } else if (req.body.backendLogo === "") {
+        updateData.backendLogo = "";
       }
+
       if (req.files.image) {
         if (!updateData.heroBanner) updateData.heroBanner = {};
         updateData.heroBanner.image = `/uploads/${req.files.image[0].filename}`;
-      } else if (req.body.heroBannerImage) {
+      } else if (req.body.heroBannerImage === "") {
         if (!updateData.heroBanner) updateData.heroBanner = {};
-        updateData.heroBanner.image = req.body.heroBannerImage;
+        updateData.heroBanner.image = "";
       }
-    } else if (req.body.heroBannerImage) {
-      if (!updateData.heroBanner) updateData.heroBanner = {};
-      updateData.heroBanner.image = req.body.heroBannerImage;
+    } else {
+      // If no files uploaded, check for explicit removals
+      if (req.body.frontendLogo === "") updateData.frontendLogo = "";
+      if (req.body.backendLogo === "") updateData.backendLogo = "";
+      if (req.body.heroBannerImage === "") {
+        if (!updateData.heroBanner) updateData.heroBanner = {};
+        updateData.heroBanner.image = "";
+      }
     }
 
     let settings = await Settings.findOne();

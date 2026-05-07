@@ -14,16 +14,16 @@ export const getDashboardStats = async (req, res) => {
 
     // Filters for Admin
     const turfQuery = isSuperadmin ? {} : { owner: userId };
+    const tournamentQuery = isSuperadmin ? {} : { owner: userId };
     const userQuery = isSuperadmin ? {} : { createdBy: userId };
 
-    // Get turf IDs for non-superadmin to filter bookings and tournaments
+    // Get turf IDs for non-superadmin to filter bookings
     let userTurfIds = [];
     if (!isSuperadmin) {
       const userTurfs = await Turf.find({ owner: userId }).select('_id');
       userTurfIds = userTurfs.map(t => t._id);
     }
     const bookingQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
-    const tournamentQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
 
     const [
       totalUsers,
@@ -60,6 +60,26 @@ export const getDashboardStats = async (req, res) => {
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
+
+    // Calculate Booking Revenue
+    const bookingRevenueResult = await Booking.aggregate([
+      { $match: { ...bookingQuery, status: "confirmed" } },
+      { $group: { _id: null, total: { $sum: "$paidAmount" } } }
+    ]);
+    const bookingRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
+
+    // Calculate Tournament Revenue
+    const tournaments = await Tournament.find(tournamentQuery).select("registeredTeams");
+    let tournamentRevenue = 0;
+    tournaments.forEach(t => {
+      (t.registeredTeams || []).forEach(reg => {
+        if (reg.paymentDetails && reg.paymentDetails.amount) {
+          tournamentRevenue += reg.paymentDetails.amount;
+        }
+      });
+    });
+
+    const totalRevenue = bookingRevenue + tournamentRevenue;
 
     // Get recent turfs
     const recentTurfs = await Turf.find(turfQuery)
@@ -99,6 +119,11 @@ export const getDashboardStats = async (req, res) => {
           pending: pendingTournaments,
           approved: approvedTournaments,
           rejected: rejectedTournaments
+        },
+        revenue: {
+          total: totalRevenue,
+          bookings: bookingRevenue,
+          tournaments: tournamentRevenue
         },
         roles: totalRoles
       },
