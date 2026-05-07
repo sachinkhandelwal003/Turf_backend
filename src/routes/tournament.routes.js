@@ -1,5 +1,5 @@
 import express from "express";
-import { 
+import {
   createTournament, 
   getTournaments, 
   getTournamentById, 
@@ -11,24 +11,24 @@ import {
   getAllRegistrations
 } from "../controllers/tournament.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { checkRole } from "../middleware/rbac.middleware.js";
+import { checkPermission } from "../middleware/rbac.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
 
 const router = express.Router();
 
+// Protected routes (Superadmin/Admin)
+router.get("/registrations/all", authMiddleware, checkPermission("manage_tournaments"), getAllRegistrations);
+router.get("/my/all", authMiddleware, checkPermission("manage_tournaments"), getMyTournaments);
+router.post("/:id/register", authMiddleware, registerTournament);
+router.post("/", authMiddleware, checkPermission("manage_tournaments"), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), createTournament);
+router.put("/:id", authMiddleware, checkPermission("manage_tournaments"), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), updateTournament);
+router.delete("/:id", authMiddleware, checkPermission("manage_tournaments"), deleteTournament);
+
+// Superadmin only routes
+router.patch("/:id/approve", authMiddleware, checkPermission("approve_tournaments"), approveTournament);
+
 // Public routes
 router.get("/", getTournaments);
 router.get("/:id", getTournamentById);
-
-// Protected routes (Superadmin/Admin)
-router.get("/registrations/all", authMiddleware, checkRole(["superadmin", "admin"]), getAllRegistrations);
-router.get("/my/all", authMiddleware, checkRole(["superadmin", "admin"]), getMyTournaments);
-router.post("/:id/register", authMiddleware, registerTournament);
-router.post("/", authMiddleware, checkRole(["superadmin", "admin"]), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), createTournament);
-router.put("/:id", authMiddleware, checkRole(["superadmin", "admin"]), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), updateTournament);
-router.delete("/:id", authMiddleware, checkRole(["superadmin", "admin"]), deleteTournament);
-
-// Superadmin/Admin routes
-router.patch("/:id/approve", authMiddleware, checkRole(["superadmin", "admin"]), approveTournament);
 
 export default router;

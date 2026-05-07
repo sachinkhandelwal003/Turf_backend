@@ -135,3 +135,38 @@ export const getDashboardStats = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+// @desc    Get public statistics for home page
+// @route   GET /api/dashboard/public-stats
+// @access  Public
+export const getPublicStats = async (req, res) => {
+  try {
+    const [
+      totalTurfs,
+      totalUsers,
+      totalBookings,
+      turfsWithCities
+    ] = await Promise.all([
+      Turf.countDocuments({ status: "approved" }),
+      User.countDocuments({ role: "user" }),
+      Booking.countDocuments(),
+      Turf.find({ status: "approved" }).select("location.city")
+    ]);
+
+    const uniqueCities = [...new Set(turfsWithCities.map(t => t.location.city))];
+    const totalCities = uniqueCities.length;
+
+    res.json({
+      success: true,
+      stats: {
+        grounds: totalTurfs,
+        players: totalUsers,
+        cities: totalCities,
+        bookings: totalBookings
+      }
+    });
+  } catch (err) {
+    console.error("Get Public Stats Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};

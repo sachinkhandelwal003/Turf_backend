@@ -12,8 +12,38 @@ export const checkPermission = (requiredPermission) => {
         return next();
       }
 
+      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+
       // Check if user has the required permission in their permissions array
-      if (user.permissions && Array.isArray(user.permissions) && user.permissions.includes(requiredPermission)) {
+      if (permissions.includes(requiredPermission) || permissions.includes("all")) {
+        return next();
+      }
+
+      return res.status(403).json({ msg: "Access denied: Insufficient permissions" });
+    } catch (err) {
+      return res.status(500).json({ msg: "Internal server error during permission check" });
+    }
+  };
+};
+
+export const checkAnyPermission = (requiredPermissions) => {
+  return (req, res, next) => {
+    try {
+      const { user } = req;
+
+      if (!user) {
+        return res.status(401).json({ msg: "Authentication required" });
+      }
+
+      if (user.role === "superadmin") {
+        return next();
+      }
+
+      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+      if (
+        permissions.includes("all") ||
+        requiredPermissions.some((permission) => permissions.includes(permission))
+      ) {
         return next();
       }
 

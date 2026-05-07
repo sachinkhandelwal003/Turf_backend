@@ -14,6 +14,10 @@ const roleSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    description: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true }
 );

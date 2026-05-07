@@ -1,0 +1,50 @@
+export const SYSTEM_PERMISSIONS = [
+  { name: "All Permissions", slug: "all", description: "Superuser access to all features" },
+  { name: "View Dashboard", slug: "view_dashboard", description: "Access the admin dashboard" },
+  { name: "View Bookings", slug: "view_bookings", description: "View bookings" },
+  { name: "Manage Bookings", slug: "manage_bookings", description: "Update booking status and booking operations" },
+  { name: "View Reviews", slug: "view_reviews", description: "View venue reviews" },
+  { name: "Manage Reviews", slug: "manage_reviews", description: "Approve, hide, and delete venue reviews" },
+  { name: "View Venues", slug: "view_venues", description: "View venue records" },
+  { name: "Add Venue", slug: "add_venue", description: "Create new venues" },
+  { name: "Edit Venue", slug: "edit_venue", description: "Edit existing venues" },
+  { name: "Manage Turfs", slug: "manage_turfs", description: "Full venue/turf management access" },
+  { name: "Manage Users", slug: "manage_users", description: "Create, edit, and delete users" },
+  { name: "Manage Roles", slug: "manage_roles", description: "Create and edit system roles" },
+  { name: "Manage Permissions", slug: "manage_permissions", description: "Manage system permissions and access matrix" },
+  { name: "Manage Masters", slug: "manage_masters", description: "Manage sports, amenities, and court types" },
+  { name: "Manage Tournaments", slug: "manage_tournaments", description: "Create and edit tournaments" },
+  { name: "Approve Tournaments", slug: "approve_tournaments", description: "Approve or reject tournaments" },
+  { name: "Manage Settings", slug: "manage_settings", description: "Change system settings" },
+  { name: "View Turfs", slug: "view_turfs", description: "View public turfs" },
+  { name: "Book Turf", slug: "book_turf", description: "Book turf slots" },
+];
+
+export const SYSTEM_ROLES = [
+  {
+    name: "superadmin",
+    permissions: ["all"],
+    description: "System owner with full access",
+  },
+  {
+    name: "admin",
+    permissions: [
+      "view_dashboard",
+      "view_bookings",
+      "manage_bookings",
+      "view_reviews",
+      "manage_reviews",
+      "view_venues",
+      "add_venue",
+      "edit_venue",
+      "manage_turfs",
+      "manage_tournaments",
+    ],
+    description: "Venue owner or manager",
+  },
+  {
+    name: "user",
+    permissions: ["view_turfs", "book_turf"],
+    description: "Standard customer",
+  },
+];

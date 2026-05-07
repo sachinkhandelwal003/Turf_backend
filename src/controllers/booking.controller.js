@@ -1,6 +1,34 @@
 import Booking from "../models/booking.model.js";
 import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
+import Review from "../models/review.model.js";
+
+const getTodayParts = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    today: `${year}-${month}-${day}`,
+    currentTime: now.toTimeString().slice(0, 5),
+  };
+};
+
+const completedBookingQuery = (today, currentTime) => ({
+  $or: [
+    { status: "completed" },
+    { status: "confirmed", date: { $lt: today } },
+    { status: "confirmed", date: today, endTime: { $lte: currentTime } },
+  ],
+});
+
+const activeUpcomingQuery = (today, currentTime) => ({
+  status: { $in: ["pending", "confirmed"] },
+  $or: [
+    { date: { $gt: today } },
+    { date: today, endTime: { $gt: currentTime } },
+  ],
+});
 
 // @desc    Create a new booking
 // @route   POST /api/bookings
@@ -190,13 +218,13 @@ export const processPayment = async (req, res) => {
 export const getMyBookings = async (req, res) => {
   try {
     const { filter } = req.query; // upcoming, completed, cancelled
+    const { today, currentTime } = getTodayParts();
     let query = { user: req.user.id };
 
     if (filter === 'upcoming') {
-      query.status = { $in: ['pending', 'confirmed'] };
-      // Also could filter by date >= today
+      query = { ...query, ...activeUpcomingQuery(today, currentTime) };
     } else if (filter === 'completed') {
-      query.status = 'completed';
+      query = { ...query, ...completedBookingQuery(today, currentTime) };
     } else if (filter === 'cancelled') {
       query.status = 'cancelled';
     }
@@ -205,9 +233,19 @@ export const getMyBookings = async (req, res) => {
       .populate("turf", "name location images")
       .sort("-date -startTime");
 
+    const reviewedBookingIds = await Review.find({
+      user: req.user.id,
+      booking: { $in: bookings.map((booking) => booking._id) },
+    }).distinct("booking");
+    const reviewedSet = new Set(reviewedBookingIds.map((id) => id.toString()));
+    const bookingsWithReviewState = bookings.map((booking) => ({
+      ...booking.toObject(),
+      hasReviewed: reviewedSet.has(booking._id.toString()),
+    }));
+
     res.json({
       success: true,
-      bookings,
+      bookings: bookingsWithReviewState,
     });
   } catch (err) {
     console.error("Get My Bookings Error:", err);
@@ -288,14 +326,50 @@ export const updateBookingStatus = async (req, res) => {
 // @access  Private (Superadmin only)
 export const getAllBookings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status = "all" } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = "", 
+      status = "all",
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      turfId
+    } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let query = {};
 
+    // Turf ID filter
+    if (turfId) {
+      query.turf = turfId;
+    }
+
     // Status filter
     if (status !== "all") {
       query.status = status;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = startDate;
+      }
+      if (endDate) {
+        query.date.$lte = endDate;
+      }
+    }
+
+    // Time range filter
+    if (startTime || endTime) {
+      if (startTime) {
+        query.startTime = { $gte: startTime };
+      }
+      if (endTime) {
+        query.endTime = { $lte: endTime };
+      }
     }
 
     // Search filter (User name/email or Turf name)
@@ -311,11 +385,14 @@ export const getAllBookings = async (req, res) => {
       const userIds = users.map(u => u._id);
       const turfIds = turfs.map(t => t._id);
 
-      query.$or = [
-        { user: { $in: userIds } },
-        { turf: { $in: turfIds } },
-        { bookingId: searchRegex }
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { user: { $in: userIds } },
+          { turf: { $in: turfIds } },
+          { bookingId: searchRegex }
+        ]
+      });
     }
 
     const [bookings, total] = await Promise.all([
@@ -376,19 +453,99 @@ export const checkAvailability = async (req, res) => {
 // @access  Private (Admin)
 export const getAdminTurfBookings = async (req, res) => {
   try {
-    // 1. Find all turfs owned by this admin
-    const myTurfs = await Turf.find({ owner: req.user.id }).select("_id");
-    const turfIds = myTurfs.map(t => t._id);
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = "", 
+      status = "all",
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      turfId
+    } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // 2. Find all bookings for these turfs
-    const bookings = await Booking.find({ turf: { $in: turfIds } })
-      .populate("turf", "name location images")
-      .populate("user", "name email phone profilePhoto")
-      .sort("-createdAt");
+    // 1. Find all turfs owned by this admin
+    const myTurfs = await Turf.find({ owner: req.user.id }).select("_id name");
+    const myTurfIds = myTurfs.map(t => t._id);
+
+    let query = { turf: { $in: myTurfIds } };
+
+    // Turf ID filter (must be within admin's own turfs)
+    if (turfId && myTurfIds.some(id => id.toString() === turfId.toString())) {
+      query.turf = turfId;
+    }
+
+    // Status filter
+    if (status !== "all") {
+      query.status = status;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = startDate;
+      }
+      if (endDate) {
+        query.date.$lte = endDate;
+      }
+    }
+
+    // Time range filter
+    if (startTime || endTime) {
+      if (startTime) {
+        query.startTime = { $gte: startTime };
+      }
+      if (endTime) {
+        query.endTime = { $lte: endTime };
+      }
+    }
+
+    // Search filter (User name/email or Turf name)
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      
+      // Find matching users and turfs (within admin's own turfs) first
+      const [users, turfs] = await Promise.all([
+        User.find({ $or: [{ name: searchRegex }, { email: searchRegex }] }).select("_id"),
+        Turf.find({ name: searchRegex, _id: { $in: myTurfIds } }).select("_id")
+      ]);
+
+      const userIds = users.map(u => u._id);
+      const turfIds = turfs.map(t => t._id);
+
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { user: { $in: userIds } },
+          { turf: { $in: turfIds } },
+          { bookingId: searchRegex }
+        ]
+      });
+    }
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate("turf", "name location images")
+        .populate("user", "name email phone profilePhoto")
+        .sort("-createdAt")
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Booking.countDocuments(query)
+    ]);
+
+    // Filter out bookings where turf was deleted (orphans)
+    const validBookings = bookings.filter(b => b.turf !== null);
 
     res.json({
       success: true,
-      bookings
+      bookings: validBookings,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      myTurfs: myTurfs
     });
   } catch (err) {
     console.error("Get Admin Turf Bookings Error:", err);

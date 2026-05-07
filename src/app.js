@@ -7,6 +7,7 @@ import settingsRoutes from "./routes/settings.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
 import tournamentRoutes from "./routes/tournament.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
 
 const app = express();
 
@@ -30,5 +31,6 @@ app.use("/api/masters", masterRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 export default app;

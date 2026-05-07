@@ -7,6 +7,7 @@ import Permission from "./src/models/auth/permission.model.js";
 import Master from "./src/models/master.model.js";
 import Turf from "./src/models/turf.model.js";
 import Booking from "./src/models/booking.model.js";
+import { SYSTEM_PERMISSIONS, SYSTEM_ROLES } from "./src/config/rbac.js";
 
 dotenv.config();
 
@@ -28,45 +29,14 @@ const seedDatabase = async () => {
 
     // 1.5 Seed Permissions
     console.log("Seeding permissions...");
-    const systemPermissions = [
-      { name: "View Dashboard", slug: "view_dashboard", description: "Access to admin dashboard" },
-      { name: "Manage Users", slug: "manage_users", description: "Create, edit, and delete users" },
-      { name: "Manage Roles", slug: "manage_roles", description: "Create and edit system roles" },
-      { name: "Manage Permissions", slug: "manage_permissions", description: "Manage system permissions" },
-      { name: "Manage Settings", slug: "manage_settings", description: "Change system settings" },
-      { name: "Manage Masters", slug: "manage_masters", description: "Manage sports, amenities, and court types" },
-      { name: "Manage Turfs", slug: "manage_turfs", description: "Full access to turf management" },
-      { name: "View Bookings", slug: "view_bookings", description: "View all bookings" },
-      { name: "Manage Bookings", slug: "manage_bookings", description: "Manage all bookings" },
-      { name: "Manage Tournaments", slug: "manage_tournaments", description: "Create and edit tournaments" },
-      { name: "Approve Tournaments", slug: "approve_tournaments", description: "Approve or reject tournaments" },
-      { name: "All Permissions", slug: "all", description: "Superuser access to all features" },
-      { name: "View Venues", slug: "view_venues", description: "View list of venues" },
-      { name: "Add Venue", slug: "add_venue", description: "Add new venues" },
-      { name: "Edit Venue", slug: "edit_venue", description: "Edit existing venues" }
-    ];
-    await Permission.insertMany(systemPermissions);
+    await Permission.insertMany(SYSTEM_PERMISSIONS);
 
     // 2. Seed Roles
     console.log("Seeding roles...");
-    const roles = await Role.insertMany([
-      { name: "superadmin", permissions: ["all"], description: "System owner with full access" },
-      {
-        name: "admin",
-        permissions: [
-          "view_dashboard",
-          "view_venues",
-          "add_venue",
-          "edit_venue",
-          "manage_turfs",
-          "view_bookings",
-          "manage_bookings",
-          "manage_tournaments"
-        ],
-        description: "Venue owner/manager"
-      },
-      { name: "user", permissions: ["view_turfs", "book_turf"], description: "Standard customer" }
-    ]);
+    await Role.insertMany(SYSTEM_ROLES);
+    const superadminRole = SYSTEM_ROLES.find((role) => role.name === "superadmin");
+    const adminRole = SYSTEM_ROLES.find((role) => role.name === "admin");
+    const userRole = SYSTEM_ROLES.find((role) => role.name === "user");
 
     // 3. Seed Users
     console.log("Seeding users...");
@@ -80,7 +50,7 @@ const seedDatabase = async () => {
       phone: "9876543210",
       password: hashedAdminPassword,
       role: "superadmin",
-      permissions: ["all"],
+      permissions: superadminRole?.permissions || ["all"],
       isActive: true,
       profilePhoto: "https://i.pravatar.cc/150?u=admin@turf.com"
     });
@@ -94,7 +64,7 @@ const seedDatabase = async () => {
       phone: "9988776655",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings", "manage_tournaments"],
+      permissions: adminRole?.permissions || [],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner1@turf.com"
@@ -107,7 +77,7 @@ const seedDatabase = async () => {
       phone: "8877665544",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings", "manage_tournaments"],
+      permissions: adminRole?.permissions || [],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner2@turf.com"
@@ -121,7 +91,7 @@ const seedDatabase = async () => {
         phone: "7766554433",
         password: hashedUserPassword,
         role: "user",
-        permissions: [],
+        permissions: userRole?.permissions || [],
         isActive: true,
         createdBy: superadmin._id,
         profilePhoto: "https://i.pravatar.cc/150?u=rahul@gmail.com"
@@ -132,7 +102,7 @@ const seedDatabase = async () => {
         phone: "6655443322",
         password: hashedUserPassword,
         role: "user",
-        permissions: [],
+        permissions: userRole?.permissions || [],
         isActive: true,
         createdBy: owner1._id,
         profilePhoto: "https://i.pravatar.cc/150?u=pooja@gmail.com"
