@@ -30,8 +30,8 @@ export const createTournament = async (req, res) => {
 
     const tournament = await Tournament.create({
       ...body,
-      createdBy: req.user.id,
-      isApproved: req.user.role === 'superadmin', // Auto-approve if created by superadmin
+      owner: req.user.id,
+      approvalStatus: req.user.role === 'superadmin' ? 'approved' : 'pending',
       approvedBy: req.user.role === 'superadmin' ? req.user.id : null,
       approvedAt: req.user.role === 'superadmin' ? new Date() : null,
     });
@@ -53,16 +53,36 @@ export const createTournament = async (req, res) => {
 export const getTournaments = async (req, res) => {
   try {
     const { status, sport } = req.query;
-    let query = { isActive: true };
+    let query = { isActive: true, approvalStatus: 'approved' };
 
     if (status) query.status = status;
     if (sport) query.sport = sport;
 
-    const tournaments = await Tournament.find(query).sort("startDate").populate("createdBy", "name email role");
+    const tournaments = await Tournament.find(query).sort("startDate").populate("owner", "name email role");
     res.json({ success: true, count: tournaments.length, tournaments });
   } catch (err) {
     console.error("Get Tournaments Error:", err);
     res.status(500).json({ error: "Server Error while fetching tournaments" });
+  }
+};
+
+// @desc    Get all tournaments for the logged-in owner/admin
+// @route   GET /api/tournaments/my/all
+// @access  Private (Admin/Superadmin)
+export const getMyTournaments = async (req, res) => {
+  try {
+    let query = { owner: req.user.id };
+    
+    // Superadmin can see all tournaments
+    if (req.user.role === "superadmin") {
+      query = {};
+    }
+
+    const tournaments = await Tournament.find(query).sort("-createdAt").populate("owner", "name email");
+    res.json({ success: true, count: tournaments.length, tournaments });
+  } catch (err) {
+    console.error("Get My Tournaments Error:", err);
+    res.status(500).json({ error: "Server Error while fetching your tournaments" });
   }
 };
 
@@ -71,21 +91,25 @@ export const getTournaments = async (req, res) => {
 // @access  Private (Superadmin)
 export const approveTournament = async (req, res) => {
   try {
-    const { isApproved } = req.body;
+    const { status } = req.body; // 'approved' or 'rejected'
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
     const tournament = await Tournament.findById(req.params.id);
 
     if (!tournament) {
       return res.status(404).json({ msg: "Tournament not found" });
     }
 
-    tournament.isApproved = isApproved;
+    tournament.approvalStatus = status;
     tournament.approvedBy = req.user.id;
     tournament.approvedAt = new Date();
     await tournament.save();
 
     res.json({ 
       success: true, 
-      message: `Tournament ${isApproved ? 'approved' : 'rejected'} successfully`,
+      message: `Tournament ${status} successfully`,
       tournament 
     });
   } catch (err) {
@@ -99,7 +123,7 @@ export const approveTournament = async (req, res) => {
 // @access  Public
 export const getTournamentById = async (req, res) => {
   try {
-    const tournament = await Tournament.findById(req.params.id).populate("createdBy", "name email role");
+    const tournament = await Tournament.findById(req.params.id).populate("owner", "name email role");
     if (!tournament) {
       return res.status(404).json({ msg: "Tournament not found" });
     }
@@ -119,7 +143,7 @@ export const updateTournament = async (req, res) => {
     if (!tournament) return res.status(404).json({ msg: "Tournament not found" });
 
     // Check ownership or superadmin
-    if (req.user.role !== 'superadmin' && tournament.createdBy.toString() !== req.user.id) {
+    if (req.user.role !== 'superadmin' && tournament.owner.toString() !== req.user.id) {
         return res.status(403).json({ msg: "Not authorized to update this tournament" });
     }
 
@@ -184,7 +208,7 @@ export const deleteTournament = async (req, res) => {
     if (!tournament) return res.status(404).json({ msg: "Tournament not found" });
 
     // Check ownership or superadmin
-    if (req.user.role !== 'superadmin' && tournament.createdBy.toString() !== req.user.id) {
+    if (req.user.role !== 'superadmin' && tournament.owner.toString() !== req.user.id) {
         return res.status(403).json({ msg: "Not authorized to delete this tournament" });
     }
 

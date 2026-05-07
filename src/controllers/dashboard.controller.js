@@ -14,6 +14,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Filters for Admin
     const turfQuery = isSuperadmin ? {} : { owner: userId };
+    const tournamentQuery = isSuperadmin ? {} : { owner: userId };
     const userQuery = isSuperadmin ? {} : { createdBy: userId };
 
     // Get turf IDs for non-superadmin to filter bookings and tournaments
@@ -40,6 +41,9 @@ export const getDashboardStats = async (req, res) => {
       cancelledBookings,
       totalTournaments,
       pendingTournaments
+      pendingTournaments,
+      approvedTournaments,
+      rejectedTournaments
     ] = await Promise.all([
       User.countDocuments({ ...userQuery, role: "user" }),
       User.countDocuments({ ...userQuery, role: "admin" }),
@@ -55,6 +59,9 @@ export const getDashboardStats = async (req, res) => {
       Booking.countDocuments({ ...bookingQuery, status: "cancelled" }),
       Tournament.countDocuments(tournamentQuery),
       Tournament.countDocuments({ ...tournamentQuery, status: "pending" })
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: { $in: ["pending", null, undefined] } }),
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
 
     // Get recent turfs
@@ -93,6 +100,9 @@ export const getDashboardStats = async (req, res) => {
         tournaments: {
           total: totalTournaments,
           pending: pendingTournaments
+          pending: pendingTournaments,
+          approved: approvedTournaments,
+          rejected: rejectedTournaments
         },
         roles: totalRoles
       },

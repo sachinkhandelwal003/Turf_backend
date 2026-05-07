@@ -17,7 +17,8 @@ import {
   deleteRole,
   createUser,
   deleteUser,
-  impersonate
+  impersonate,
+  updatePassword
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
@@ -29,7 +30,11 @@ router.post("/register", register);
 router.post("/login", login);
 router.post("/impersonate", authMiddleware, checkRole(["superadmin"]), impersonate);
 router.get("/profile", authMiddleware, getProfile);
-router.put("/profile", authMiddleware, upload.single("profilePhoto"), updateProfile);
+router.put("/profile", authMiddleware, upload.fields([
+  { name: 'profilePhoto', maxCount: 1 },
+  { name: 'coverPhoto', maxCount: 1 }
+]), updateProfile);
+router.put("/update-password", authMiddleware, updatePassword);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkRole(["admin", "superadmin"]), getAllUsers);

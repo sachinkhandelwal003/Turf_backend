@@ -86,6 +86,9 @@ const bookingSchema = new mongoose.Schema(
     paymentId: {
       type: String,
     },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+    },
   },
   { timestamps: true }
 );

@@ -1,5 +1,5 @@
 import express from "express";
-import { getMasters, createMaster, deleteMaster } from "../controllers/master.controller.js";
+import { getMasters, createMaster, deleteMaster, updateMaster } from "../controllers/master.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";

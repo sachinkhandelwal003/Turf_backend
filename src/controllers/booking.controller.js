@@ -47,6 +47,20 @@ export const createBooking = async (req, res) => {
       const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${createdBookings.length}`;
       
       const totalAmount = pricePerSlot + feePerSlot;
+        console.log("Found existing booking for slot:", currentSlot);
+        return res.status(400).json({ 
+          error: `One or more selected courts are already booked for the time slot: ${currentSlot}` 
+        });
+      }
+
+      // Generate a unique booking ID for each slot
+      const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${i}`;
+      
+      // Calculate individual slot price
+      const slotPrice = Number(price) / slotsToBook.length;
+      const slotConvenienceFee = (Number(convenienceFee) || 0) / slotsToBook.length;
+      const totalAmount = slotPrice + slotConvenienceFee;
+
       let paidAmount = 0;
       if (paymentStrategy === 'full') {
         paidAmount = totalAmount;
@@ -63,6 +77,7 @@ export const createBooking = async (req, res) => {
         startTime,
         endTime,
         price: pricePerSlot,
+        price: slotPrice,
         courts,
         bookingId,
         totalAmount,
@@ -73,6 +88,12 @@ export const createBooking = async (req, res) => {
         splitWithSquad: splitWithSquad || false,
         numberOfPlayers: Number(numberOfPlayers) || 1,
         paymentStatus: 'pending'
+        convenienceFee: slotConvenienceFee,
+        paymentStrategy: paymentStrategy || 'full',
+        splitWithSquad: splitWithSquad || false,
+        numberOfPlayers: Number(numberOfPlayers) || 1,
+        paymentStatus: 'pending',
+        metadata: { transactionGroupId } // Store group ID for tracking
       };
 
       const booking = await Booking.create(bookingData);
@@ -84,6 +105,9 @@ export const createBooking = async (req, res) => {
       message: "Booking(s) initiated successfully",
       bookings: createdBookings,
       booking: createdBookings[0] // For backward compatibility
+      message: `${createdBookings.length} booking(s) initiated successfully`,
+      booking: createdBookings[0], // Return the first one for backward compatibility
+      bookings: createdBookings,
     });
   } catch (err) {
     console.error("Create Booking Error Details:", err);
@@ -96,24 +120,54 @@ export const createBooking = async (req, res) => {
 // @access  Private
 export const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
+    const ids = req.params.id.split(',');
+    const bookings = await Booking.find({ _id: { $in: ids } })
       .populate("turf", "name location images pricePerHour")
       .populate("user", "name email phone");
 
-    if (!booking) {
+    if (!bookings || bookings.length === 0) {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Check authorization
-    if (req.user.role !== 'superadmin' && 
-        booking.user._id.toString() !== req.user.id && 
-        booking.turf.owner?.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Not authorized" });
+    // Check authorization for all bookings
+    for (const booking of bookings) {
+      if (req.user.role !== 'superadmin' && 
+          booking.user._id.toString() !== req.user.id && 
+          booking.turf.owner?.toString() !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
     }
+
+    if (bookings.length === 1) {
+      return res.json({
+        success: true,
+        booking: bookings[0],
+      });
+    }
+
+    // Aggregate multiple bookings for checkout display
+    const aggregated = {
+      _id: req.params.id, // Keep the comma-separated IDs
+      bookingId: bookings.map(b => b.bookingId.slice(-4)).join(', '),
+      turf: bookings[0].turf,
+      sport: bookings[0].sport,
+      date: bookings[0].date,
+      startTime: bookings[0].startTime, // Use first one's start
+      endTime: bookings[bookings.length - 1].endTime, // Use last one's end
+      courts: bookings[0].courts,
+      price: bookings.reduce((sum, b) => sum + b.price, 0),
+      totalAmount: bookings.reduce((sum, b) => sum + b.totalAmount, 0),
+      paidAmount: bookings.reduce((sum, b) => sum + b.paidAmount, 0),
+      balanceAmount: bookings.reduce((sum, b) => sum + b.balanceAmount, 0),
+      convenienceFee: bookings.reduce((sum, b) => sum + b.convenienceFee, 0),
+      isMultiple: true,
+      slots: bookings.map(b => `${b.startTime} - ${b.endTime}`),
+      bookingCount: bookings.length
+    };
 
     res.json({
       success: true,
-      booking,
+      booking: aggregated,
     });
   } catch (err) {
     console.error("Get Booking By ID Error:", err);
@@ -127,23 +181,31 @@ export const getBookingById = async (req, res) => {
 export const processPayment = async (req, res) => {
   try {
     const { paymentMethod, paymentId } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const ids = req.params.id.split(',');
+    
+    const result = await Booking.updateMany(
+      { _id: { $in: ids } },
+      { 
+        $set: { 
+          paymentStatus: 'paid',
+          status: 'confirmed',
+          paymentMethod: paymentMethod,
+          paymentId: paymentId
+        } 
+      }
+    );
 
-    if (!booking) {
+    if (result.matchedCount === 0) {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    booking.paymentStatus = 'paid';
-    booking.status = 'confirmed';
-    booking.paymentMethod = paymentMethod;
-    booking.paymentId = paymentId;
-
-    await booking.save();
+    const updatedBookings = await Booking.find({ _id: { $in: ids } });
 
     res.json({
       success: true,
       message: "Payment processed successfully",
-      booking,
+      booking: updatedBookings[0],
+      bookings: updatedBookings
     });
   } catch (err) {
     console.error("Process Payment Error:", err);
@@ -320,6 +382,8 @@ export const checkAvailability = async (req, res) => {
 
     if (!turfId || !date) {
       return res.status(400).json({ error: "Turf ID and date are required" });
+    if (!turfId || !date) {
+      return res.status(400).json({ error: "Please provide turfId and date" });
     }
 
     const bookings = await Booking.find({

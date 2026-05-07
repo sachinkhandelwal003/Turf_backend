@@ -38,6 +38,8 @@ const seedDatabase = async () => {
       { name: "Manage Turfs", slug: "manage_turfs", description: "Full access to turf management" },
       { name: "View Bookings", slug: "view_bookings", description: "View all bookings" },
       { name: "Manage Bookings", slug: "manage_bookings", description: "Manage all bookings" },
+      { name: "Manage Tournaments", slug: "manage_tournaments", description: "Create and edit tournaments" },
+      { name: "Approve Tournaments", slug: "approve_tournaments", description: "Approve or reject tournaments" },
       { name: "All Permissions", slug: "all", description: "Superuser access to all features" },
       { name: "View Venues", slug: "view_venues", description: "View list of venues" },
       { name: "Add Venue", slug: "add_venue", description: "Add new venues" },
@@ -58,7 +60,8 @@ const seedDatabase = async () => {
           "edit_venue",
           "manage_turfs",
           "view_bookings",
-          "manage_bookings"
+          "manage_bookings",
+          "manage_tournaments"
         ],
         description: "Venue owner/manager"
       },
@@ -91,7 +94,7 @@ const seedDatabase = async () => {
       phone: "9988776655",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings"],
+      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings", "manage_tournaments"],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner1@turf.com"
@@ -104,7 +107,7 @@ const seedDatabase = async () => {
       phone: "8877665544",
       password: hashedAdminPassword,
       role: "admin",
-      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings"],
+      permissions: ["view_dashboard", "view_venues", "add_venue", "edit_venue", "manage_turfs", "view_bookings", "manage_bookings", "manage_tournaments"],
       isActive: true,
       createdBy: superadmin._id,
       profilePhoto: "https://i.pravatar.cc/150?u=owner2@turf.com"

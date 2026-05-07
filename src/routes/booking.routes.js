@@ -15,6 +15,7 @@ import { checkRole } from "../middleware/rbac.middleware.js";
 
 const router = express.Router();
 
+router.get("/check-availability", checkAvailability);
 router.post("/", authMiddleware, createBooking);
 router.get("/check-availability", checkAvailability);
 router.get("/my", authMiddleware, getMyBookings);
