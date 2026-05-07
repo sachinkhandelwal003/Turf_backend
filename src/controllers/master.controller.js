@@ -5,7 +5,11 @@ export const getMasters = async (req, res) => {
     const masters = await Master.find({ isActive: true }).sort("name");
     res.json({ success: true, masters });
   } catch (err) {
-    res.status(500).json({ error: "Server Error" });
+    console.log(err);
+
+res.status(500).json({
+  error: err.message,
+});
   }
 };
 
@@ -18,11 +22,11 @@ export const createMaster = async (req, res) => {
       imageData = `/uploads/${req.file.filename}`;
     }
 
-    const master = await Master.create({ 
-      name, 
-      category,
-      image: imageData
-    });
+  const master = await Master.create({
+  name,
+  category,
+  image: imageData,
+});
     
     res.status(201).json({ success: true, master });
   } catch (err) {
@@ -44,23 +48,48 @@ export const deleteMaster = async (req, res) => {
 
 export const updateMaster = async (req, res) => {
   try {
-    const { name } = req.body;
-    let updateData = { name };
-    
+    const { name, category } = req.body;
+
+    let updateData = {
+      name,
+      category,
+    };
+
     if (req.file) {
       updateData.image = `/uploads/${req.file.filename}`;
     }
-    
-    const master = await Master.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    const master = await Master.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
     if (!master) {
-      return res.status(404).json({ error: "Master entry not found" });
+      return res.status(404).json({
+        error: "Master entry not found",
+      });
     }
-    
-    res.json({ success: true, master });
+
+    res.json({
+      success: true,
+      master,
+    });
+
   } catch (err) {
+    console.log("UPDATE MASTER ERROR:", err);
+
     if (err.code === 11000) {
-      return res.status(400).json({ error: "This master entry already exists in this category" });
+      return res.status(400).json({
+        error: "This master entry already exists in this category",
+      });
     }
-    res.status(500).json({ error: "Server Error" });
+
+    res.status(500).json({
+      error: err.message,
+    });
   }
-};
+}; 
