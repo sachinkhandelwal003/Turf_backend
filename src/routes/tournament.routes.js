@@ -8,7 +8,8 @@ import {
   approveTournament,
   getMyTournaments,
   registerTournament,
-  getAllRegistrations
+  getAllRegistrations,
+  deleteRegistration
 } from "../controllers/tournament.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/rbac.middleware.js";
@@ -18,6 +19,7 @@ const router = express.Router();
 
 // Protected routes (Superadmin/Admin)
 router.get("/registrations/all", authMiddleware, checkPermission("manage_tournaments"), getAllRegistrations);
+router.delete("/:tournamentId/registrations/:registrationId", authMiddleware, checkPermission("manage_tournaments"), deleteRegistration);
 router.get("/my/all", authMiddleware, checkPermission("manage_tournaments"), getMyTournaments);
 router.post("/:id/register", authMiddleware, registerTournament);
 router.post("/", authMiddleware, checkPermission("manage_tournaments"), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), createTournament);

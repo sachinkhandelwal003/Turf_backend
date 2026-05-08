@@ -575,3 +575,36 @@ export const getAdminTurfBookings = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+// @desc    Delete a booking
+// @route   DELETE /api/bookings/:id
+// @access  Private (Admin/Superadmin)
+export const deleteBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // RBAC: Only admin who owns the turf or superadmin can delete
+    // First find the turf to check owner
+    const turf = await Turf.findById(booking.turf);
+    
+    if (req.user.role !== 'superadmin') {
+      if (!turf || turf.owner.toString() !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to delete this booking" });
+      }
+    }
+
+    await booking.deleteOne();
+
+    res.json({
+      success: true,
+      message: "Booking deleted successfully"
+    });
+  } catch (err) {
+    console.error("Delete Booking Error:", err);
+    res.status(500).json({ error: "Server Error while deleting booking" });
+  }
+};
