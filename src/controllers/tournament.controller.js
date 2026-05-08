@@ -340,3 +340,42 @@ export const getAllRegistrations = async (req, res) => {
     res.status(500).json({ error: "Server Error while fetching registrations" });
   }
 };
+
+// @desc    Delete a tournament registration
+// @route   DELETE /api/tournaments/:tournamentId/registrations/:registrationId
+// @access  Private (Admin/Superadmin)
+export const deleteRegistration = async (req, res) => {
+  try {
+    const { tournamentId, registrationId } = req.params;
+
+    const tournament = await Tournament.findById(tournamentId);
+
+    if (!tournament) {
+      return res.status(404).json({ error: "Tournament not found" });
+    }
+
+    // Check ownership or superadmin
+    if (req.user.role !== 'superadmin' && tournament.owner.toString() !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to delete this registration" });
+    }
+
+    // Pull the registration from registeredTeams
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      tournamentId,
+      { $pull: { registeredTeams: { _id: registrationId } } },
+      { new: true }
+    );
+
+    if (!updatedTournament) {
+      return res.status(404).json({ error: "Failed to delete registration" });
+    }
+
+    res.json({
+      success: true,
+      message: "Registration deleted successfully"
+    });
+  } catch (err) {
+    console.error("Delete Registration Error:", err);
+    res.status(500).json({ error: err.message || "Server Error while deleting registration" });
+  }
+};

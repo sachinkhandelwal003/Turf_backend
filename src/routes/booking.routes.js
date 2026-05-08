@@ -9,6 +9,7 @@ import {
   getBookingById,
   processPayment,
   checkAvailability,
+  deleteBooking,
 } from "../controllers/booking.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
@@ -29,5 +30,6 @@ router.get("/turf/:turfId", authMiddleware, getTurfBookings);
 router.get("/:id", authMiddleware, getBookingById);
 router.post("/:id/pay", authMiddleware, processPayment);
 router.patch("/:id/status", authMiddleware, checkRole(["admin", "superadmin"]), updateBookingStatus);
+router.delete("/:id", authMiddleware, checkRole(["admin", "superadmin"]), deleteBooking);
 
 export default router;
