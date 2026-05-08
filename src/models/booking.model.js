@@ -86,6 +86,15 @@ const bookingSchema = new mongoose.Schema(
     paymentId: {
       type: String,
     },
+    isOffline: {
+      type: Boolean,
+      default: false,
+    },
+    bookedByAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    slots: [String], // Array of slots like ["06:00 - 07:00", "07:00 - 08:00"]
     metadata: {
       type: mongoose.Schema.Types.Mixed,
     },
@@ -93,8 +102,9 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent double booking for the same turf, date, and time slot for a specific court
-bookingSchema.index({ turf: 1, date: 1, startTime: 1, "courts": 1 }, { unique: true });
+// Prevent double booking for the same turf, date, and courts
+// We'll handle time range overlap in the controller since MongoDB unique index doesn't support range overlaps well
+bookingSchema.index({ turf: 1, date: 1, "courts": 1 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

@@ -38,81 +38,96 @@ export const createBooking = async (req, res) => {
     console.log("Create Booking Request Body:", req.body);
     const { 
       turfId, sport, date, slot, slots, price, courts, 
-      paymentStrategy, splitWithSquad, numberOfPlayers, convenienceFee 
+      paymentStrategy, splitWithSquad, numberOfPlayers, convenienceFee,
+      isOffline, userId // Optional userId for offline bookings by admin
     } = req.body;
 
-    // Support both single slot and multiple slots
     const slotList = slots || (slot ? [slot] : []);
 
     if (!turfId || !sport || !date || slotList.length === 0 || price === undefined || !courts || !courts.length) {
-      console.log("Missing required fields:", { turfId, sport, date, slotList, price, courts });
       return res.status(400).json({ error: "Please provide all required fields including courts" });
     }
 
-    const createdBookings = [];
-    const pricePerSlot = Number(price) / slotList.length;
-    const feePerSlot = (Number(convenienceFee) || 0) / slotList.length;
+    // Determine the overall time range
+    let minStart = "23:59";
+    let maxEnd = "00:00";
+    slotList.forEach(s => {
+      const [start, end] = s.split(" - ");
+      if (start < minStart) minStart = start;
+      if (end > maxEnd) maxEnd = end;
+    });
 
-    for (let i = 0; i < slotList.length; i++) {
-      const currentSlot = slotList[i];
-      const [startTime, endTime] = currentSlot.split(" - ");
-      
-      // Check if any of the selected courts are already booked for this slot
-      const existingBooking = await Booking.findOne({
-        turf: turfId,
-        date,
-        startTime,
-        status: { $ne: "cancelled" },
-        courts: { $in: courts }
-      });
+    // Check for overlaps with existing bookings
+    // A slot is unavailable if there's any booking on the same date and turf
+    // where any of the selected courts are used AND the time ranges overlap.
+    const existingBookings = await Booking.find({
+      turf: turfId,
+      date,
+      status: { $ne: "cancelled" },
+      courts: { $in: courts }
+    });
 
-      if (existingBooking) {
-        return res.status(400).json({ 
-          error: `Slot ${currentSlot} is already booked for one or more selected courts` 
-        });
+    for (const eb of existingBookings) {
+      // Check if any slot in slotList overlaps with eb's time range
+      for (const s of slotList) {
+        const [sStart, sEnd] = s.split(" - ");
+        // Overlap condition: (sStart < eb.endTime) && (sEnd > eb.startTime)
+        if (sStart < eb.endTime && sEnd > eb.startTime) {
+          return res.status(400).json({ 
+            error: `Slot ${s} is already booked for one or more selected courts` 
+          });
+        }
       }
-
-      // Generate a unique booking ID
-      const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}${i}`;
-      
-      const totalAmount = pricePerSlot + feePerSlot;
-      let paidAmount = 0;
-      if (paymentStrategy === 'full') {
-        paidAmount = totalAmount;
-      } else if (paymentStrategy === 'partial') {
-        paidAmount = totalAmount * 0.25;
-      }
-      const balanceAmount = totalAmount - paidAmount;
-
-      const bookingData = {
-        turf: turfId,
-        user: req.user.id,
-        sport,
-        date,
-        startTime,
-        endTime,
-        price: pricePerSlot,
-        courts,
-        bookingId,
-        totalAmount,
-        paidAmount,
-        balanceAmount,
-        convenienceFee: feePerSlot,
-        paymentStrategy: paymentStrategy || 'full',
-        splitWithSquad: splitWithSquad || false,
-        numberOfPlayers: Number(numberOfPlayers) || 1,
-        paymentStatus: 'pending'
-      };
-
-      const booking = await Booking.create(bookingData);
-      createdBookings.push(booking);
     }
+
+    // If we reach here, all slots are available
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const finalUserId = (isAdmin && userId) ? userId : req.user.id;
+    const finalIsOffline = !!(isAdmin && isOffline);
+
+    const totalAmount = Number(price) + (Number(convenienceFee) || 0);
+    let paidAmount = 0;
+    if (finalIsOffline) {
+      paidAmount = totalAmount; // Offline bookings are usually fully paid
+    } else if (paymentStrategy === 'full') {
+      paidAmount = totalAmount;
+    } else if (paymentStrategy === 'partial') {
+      paidAmount = totalAmount * 0.25;
+    }
+    const balanceAmount = totalAmount - paidAmount;
+
+    const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+    const bookingData = {
+      turf: turfId,
+      user: finalUserId,
+      sport,
+      date,
+      startTime: minStart,
+      endTime: maxEnd,
+      slots: slotList,
+      price: Number(price),
+      courts,
+      bookingId,
+      totalAmount,
+      paidAmount,
+      balanceAmount,
+      convenienceFee: Number(convenienceFee) || 0,
+      paymentStrategy: finalIsOffline ? 'full' : (paymentStrategy || 'full'),
+      splitWithSquad: splitWithSquad || false,
+      numberOfPlayers: Number(numberOfPlayers) || 1,
+      paymentStatus: finalIsOffline ? 'paid' : 'pending',
+      status: finalIsOffline ? 'confirmed' : 'pending',
+      isOffline: finalIsOffline,
+      bookedByAdmin: isAdmin ? req.user.id : null
+    };
+
+    const booking = await Booking.create(bookingData);
 
     res.status(201).json({
       success: true,
-      message: `${createdBookings.length} booking(s) initiated successfully`,
-      booking: createdBookings[0],
-      bookings: createdBookings
+      message: "Booking initiated successfully",
+      booking
     });
   } catch (err) {
     console.error("Create Booking Error Details:", err);
@@ -144,9 +159,14 @@ export const getBookingById = async (req, res) => {
     }
 
     if (bookings.length === 1) {
+      const b = bookings[0].toObject();
       return res.json({
         success: true,
-        booking: bookings[0],
+        booking: {
+          ...b,
+          isMultiple: b.slots && b.slots.length > 1,
+          bookingCount: b.slots ? b.slots.length : 1
+        },
       });
     }
 

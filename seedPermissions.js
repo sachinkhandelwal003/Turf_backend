@@ -6,7 +6,7 @@ import User from "./src/models/auth/user.model.js";
 import { SYSTEM_PERMISSIONS, SYSTEM_ROLES } from "./src/config/rbac.js";
 
 dotenv.config();
-
+// hsldfghglsghaj
 const seedPermissionsAndRoles = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);

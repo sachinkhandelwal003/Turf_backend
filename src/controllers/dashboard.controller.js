@@ -81,17 +81,21 @@ export const getDashboardStats = async (req, res) => {
 
     const totalRevenue = bookingRevenue + tournamentRevenue;
 
-    // Get recent turfs
+    // Get all turfs (removed .limit(10) to show all data as requested)
     const recentTurfs = await Turf.find(turfQuery)
       .sort("-createdAt")
-      .limit(10)
       .populate("owner", "name email");
 
-    // Get recent users
+    // Get all users (removed .limit(10) to show all data as requested)
     const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
-      .limit(10)
       .select("-password");
+
+    // Get all bookings (removed .limit(10) to show all data as requested)
+    const recentBookings = await Booking.find(bookingQuery)
+      .sort("-createdAt")
+      .populate("turf", "name")
+      .populate("user", "name email");
 
     res.json({
       success: true,
