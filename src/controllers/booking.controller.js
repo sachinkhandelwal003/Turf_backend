@@ -487,7 +487,10 @@ export const getAdminTurfBookings = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // 1. Find all turfs owned by this admin
-    const myTurfs = await Turf.find({ owner: req.user.id }).select("_id name");
+    // Include fields needed by admin panel (offline booking slot generation, court selection, etc.)
+    const myTurfs = await Turf.find({ owner: req.user.id }).select(
+      "_id name sports courts operatingHours slotDuration availableSlots"
+    );
     const myTurfIds = myTurfs.map(t => t._id);
 
     let query = { turf: { $in: myTurfIds } };
