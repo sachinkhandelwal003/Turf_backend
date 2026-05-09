@@ -13,6 +13,31 @@ connectDB();
 
 // 4. Start Server
 const port = process.env.PORT || 5001;
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+});
+
+import { Server } from "socket.io";
+const io = new Server(server);
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("join_conversation", (conversationId) => {
+    socket.join(conversationId);
+    console.log(`User ${socket.id} joined conversation: ${conversationId}`);
+  });
+
+  socket.on("send_message", (data) => {
+    // data should contain conversationId, sender, content, etc.
+    io.to(data.conversationId).emit("receive_message", data);
+  });
+
+  socket.on("delete_message", (data) => {
+    io.to(data.conversationId).emit("message_deleted", data.messageId);
+  });
+
+  socket.on("react_message", (data) => {
+    io.to(data.conversationId).emit("message_reacted", data);
+  });
 });

@@ -8,6 +8,7 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
 import tournamentRoutes from "./routes/tournament.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
 
 const app = express();
 
@@ -32,5 +33,6 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/chat", chatRoutes);
 
 export default app;

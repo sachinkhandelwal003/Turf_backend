@@ -3,14 +3,6 @@ import Booking from "../models/booking.model.js";
 import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
 
-const isBookingReviewable = (booking) => {
-  if (booking.status === "completed") return true;
-  if (booking.status !== "confirmed") return false;
-
-  const bookingEnd = new Date(`${booking.date}T${booking.endTime || "23:59"}:00`);
-  return !Number.isNaN(bookingEnd.getTime()) && bookingEnd <= new Date();
-};
-
 // @desc    Create a review
 // @route   POST /api/reviews
 // @access  Private
@@ -31,7 +23,7 @@ export const createReview = async (req, res) => {
       return res.status(403).json({ error: "Not authorized to review this booking" });
     }
 
-    if (!isBookingReviewable(booking)) {
+    if (booking.status !== "completed") {
       return res.status(400).json({ error: "Can only review completed bookings" });
     }
 

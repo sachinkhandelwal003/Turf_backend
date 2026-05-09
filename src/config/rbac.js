@@ -18,6 +18,8 @@ export const SYSTEM_PERMISSIONS = [
   { name: "Manage Settings", slug: "manage_settings", description: "Change system settings" },
   { name: "View Turfs", slug: "view_turfs", description: "View public turfs" },
   { name: "Book Turf", slug: "book_turf", description: "Book turf slots" },
+  { name: "View Chat", slug: "view_chat", description: "Access the chat system" },
+  { name: "Manage Chat", slug: "manage_chat", description: "Full control over chat operations" },
 ];
 
 export const SYSTEM_ROLES = [
@@ -39,12 +41,14 @@ export const SYSTEM_ROLES = [
       "edit_venue",
       "manage_turfs",
       "manage_tournaments",
+      "view_chat",
+      "manage_chat",
     ],
     description: "Venue owner or manager",
   },
   {
     name: "user",
-    permissions: ["view_turfs", "book_turf"],
+    permissions: ["view_turfs", "book_turf", "view_chat"],
     description: "Standard customer",
   },
 ];
