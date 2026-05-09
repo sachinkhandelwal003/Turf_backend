@@ -82,11 +82,4 @@ router.get(
   getUserConversations
 );
 
-
-// GET USER CONVERSATIONS
-router.get(
-  "/conversations/:userId",
-  getUserConversations
-);
-
 export default router;
