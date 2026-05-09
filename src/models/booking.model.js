@@ -98,6 +98,14 @@ const bookingSchema = new mongoose.Schema(
     metadata: {
       type: mongoose.Schema.Types.Mixed,
     },
+    coinsAwarded: {
+      type: Boolean,
+      default: false,
+    },
+    usedCoins: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

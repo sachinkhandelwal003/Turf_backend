@@ -2,6 +2,7 @@ import Booking from "../models/booking.model.js";
 import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
 import Review from "../models/review.model.js";
+import Settings from "../models/settings.model.js";
 
 const getTodayParts = () => {
   const now = new Date();
@@ -30,6 +31,35 @@ const activeUpcomingQuery = (today, currentTime) => ({
   ],
 });
 
+// Helper to award coins for booking
+const awardCoins = async (userId, bookingId) => {
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking || booking.coinsAwarded) return;
+
+    // Check if this is the user's first confirmed/completed booking
+    const confirmedBookingsCount = await Booking.countDocuments({
+      user: userId,
+      status: { $in: ["confirmed", "completed"] },
+      _id: { $ne: bookingId }
+    });
+
+    let coinsToAward = 0;
+    if (confirmedBookingsCount === 0) {
+      coinsToAward = 100;
+    } else {
+      coinsToAward = 50;
+    }
+
+    await User.findByIdAndUpdate(userId, { $inc: { coins: coinsToAward } });
+    booking.coinsAwarded = true;
+    await booking.save();
+    console.log(`Awarded ${coinsToAward} coins to user ${userId} for booking ${bookingId}`);
+  } catch (err) {
+    console.error("Award Coins Error:", err);
+  }
+};
+
 // @desc    Create a new booking
 // @route   POST /api/bookings
 // @access  Private
@@ -39,13 +69,21 @@ export const createBooking = async (req, res) => {
     const { 
       turfId, sport, date, slot, slots, price, courts, 
       paymentStrategy, splitWithSquad, numberOfPlayers, convenienceFee,
-      isOffline, userId // Optional userId for offline bookings by admin
+      isOffline, userId, usedCoins // Optional userId for offline bookings by admin
     } = req.body;
 
     const slotList = slots || (slot ? [slot] : []);
 
     if (!turfId || !sport || !date || slotList.length === 0 || price === undefined || !courts || !courts.length) {
       return res.status(400).json({ error: "Please provide all required fields including courts" });
+    }
+
+    // Check if user has enough coins if usedCoins is provided
+    if (usedCoins && usedCoins > 0) {
+      const user = await User.findById(req.user.id);
+      if (user.coins < usedCoins) {
+        return res.status(400).json({ error: "Insufficient coins" });
+      }
     }
 
     // Determine the overall time range
@@ -85,7 +123,16 @@ export const createBooking = async (req, res) => {
     const finalUserId = (isAdmin && userId) ? userId : req.user.id;
     const finalIsOffline = !!(isAdmin && isOffline);
 
-    const totalAmount = Number(price) + (Number(convenienceFee) || 0);
+    let totalAmount = Number(price) + (Number(convenienceFee) || 0);
+    
+    // Deduct coins from total amount if used
+    if (usedCoins && usedCoins > 0) {
+      const settings = await Settings.findOne();
+      const coinValue = settings?.coinValue || 1;
+      const coinDiscount = usedCoins * coinValue;
+      totalAmount = Math.max(0, totalAmount - coinDiscount);
+    }
+
     let paidAmount = 0;
     if (finalIsOffline) {
       paidAmount = totalAmount; // Offline bookings are usually fully paid
@@ -112,6 +159,7 @@ export const createBooking = async (req, res) => {
       totalAmount,
       paidAmount,
       balanceAmount,
+      usedCoins: Number(usedCoins) || 0,
       convenienceFee: Number(convenienceFee) || 0,
       paymentStrategy: finalIsOffline ? 'full' : (paymentStrategy || 'full'),
       splitWithSquad: splitWithSquad || false,
@@ -123,6 +171,16 @@ export const createBooking = async (req, res) => {
     };
 
     const booking = await Booking.create(bookingData);
+
+    // If coins were used, deduct them from user
+    if (usedCoins && usedCoins > 0) {
+      await User.findByIdAndUpdate(req.user.id, { $inc: { coins: -usedCoins } });
+    }
+
+    // If offline booking (confirmed), award coins
+    if (finalIsOffline) {
+      await awardCoins(finalUserId, booking._id);
+    }
 
     res.status(201).json({
       success: true,
@@ -206,9 +264,46 @@ export const getBookingById = async (req, res) => {
 // @access  Private
 export const processPayment = async (req, res) => {
   try {
-    const { paymentMethod, paymentId } = req.body;
+    const { paymentMethod, paymentId, usedCoins } = req.body;
     const ids = req.params.id.split(',');
     
+    // Find bookings to get user IDs and current amounts
+    const bookings = await Booking.find({ _id: { $in: ids } });
+
+    // If usedCoins is provided, validate and apply discount
+    if (usedCoins && usedCoins > 0) {
+      const user = await User.findById(req.user.id);
+      if (user.coins < usedCoins) {
+        return res.status(400).json({ error: "Insufficient coins" });
+      }
+
+      // Get coin value from settings
+      const settings = await Settings.findOne();
+      const coinValue = settings?.coinValue || 1;
+      const totalCoinDiscount = usedCoins * coinValue;
+
+      // Deduct coins from user
+      await User.findByIdAndUpdate(req.user.id, { $inc: { coins: -usedCoins } });
+
+      // Update bookings with usedCoins and adjusted amounts
+      let remainingDiscount = totalCoinDiscount;
+      for (const booking of bookings) {
+        if (remainingDiscount <= 0) break;
+        const discountToApply = Math.min(remainingDiscount, booking.totalAmount);
+        
+        // We store the coin count used for this booking (approximate if split)
+        // Since we are applying ₹ discount, we convert back to coins for storage if needed
+        // but it's better to store ₹ discount or just the coins. 
+        // User asked for "discount in payment".
+        booking.usedCoins = (booking.usedCoins || 0) + (discountToApply / coinValue);
+        booking.totalAmount -= discountToApply;
+        booking.paidAmount = booking.paymentStrategy === 'full' ? booking.totalAmount : (booking.totalAmount * 0.25);
+        booking.balanceAmount = booking.totalAmount - booking.paidAmount;
+        remainingDiscount -= discountToApply;
+        await booking.save();
+      }
+    }
+
     const results = await Booking.updateMany(
       { _id: { $in: ids } },
       { 
@@ -220,6 +315,11 @@ export const processPayment = async (req, res) => {
         } 
       }
     );
+
+    // Award coins for each booking
+    for (const booking of bookings) {
+      await awardCoins(booking.user, booking._id);
+    }
 
     res.json({
       success: true,
@@ -329,6 +429,11 @@ export const updateBookingStatus = async (req, res) => {
 
     booking.status = status;
     await booking.save();
+
+    // Award coins if status is confirmed or completed
+    if (["confirmed", "completed"].includes(status)) {
+      await awardCoins(booking.user, booking._id);
+    }
 
     res.json({
       success: true,

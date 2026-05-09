@@ -32,6 +32,10 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  coinValue: {
+    type: Number,
+    default: 1, // 1 coin = ₹1 by default
+  },
   heroBanner: {
     title: { type: String, default: "UP YOUR GAME" },
     subtitle: { type: String, default: "Premium sports venues, professional training, and competitive matches. Book your victory in seconds." },
