@@ -23,6 +23,11 @@ const io = new Server(server);
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
+  socket.on("join", (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined their notification room: ${socket.id}`);
+  });
+
   socket.on("join_conversation", (conversationId) => {
     socket.join(conversationId);
     console.log(`User ${socket.id} joined conversation: ${conversationId}`);
