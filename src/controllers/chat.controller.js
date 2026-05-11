@@ -140,6 +140,7 @@ export const sendMessage = async (req, res) => {
       conversationId,
       {
         lastMessage: text || (fileData ? `Sent a ${fileData.type}` : "New message"),
+        updatedAt: Date.now()
       }
     );
 
