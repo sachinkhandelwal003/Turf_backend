@@ -54,6 +54,19 @@ const turfSchema = new mongoose.Schema(
       type: String,
     },
 
+    // Dynamic pricing by specific time slots
+    slotPricings: [
+      {
+        startTime: String, // e.g. "06:00"
+        endTime: String,   // e.g. "07:00"
+        price: Number,
+        isPeak: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
+
     // Dynamic pricing by day
     rates: [
       {
@@ -135,21 +148,7 @@ const turfSchema = new mongoose.Schema(
       },
     ],
 
-    // Dynamic surge pricing
-    priceHikes: [
-      {
-        day: String,
 
-        startTime: String,
-
-        endTime: String,
-
-        hikePercentage: {
-          type: Number,
-          default: 0,
-        },
-      },
-    ],
 
     // Sports
     sports: {
@@ -176,6 +175,11 @@ const turfSchema = new mongoose.Schema(
     description: {
       type: String,
       default: "",
+    },
+
+    upiId: {
+      type: String,
+      trim: true,
     },
 
     rating: {

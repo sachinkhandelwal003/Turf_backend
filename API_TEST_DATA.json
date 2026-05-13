@@ -1,0 +1,643 @@
+{
+  "info": {
+    "name": "Turf Booking API - Test Collection",
+    "description": "Complete API testing collection with sample data",
+    "version": "1.0.0"
+  },
+  "baseUrl": "http://localhost:5000/api",
+  "auth": {
+    "description": "JWT Bearer Token Authentication",
+    "example": "Authorization: Bearer {JWT_TOKEN}"
+  },
+  "testUsers": {
+    "regularUser": {
+      "email": "raj.kumar@example.com",
+      "phone": "9876543210",
+      "password": "SecurePass@123",
+      "name": "Raj Kumar",
+      "role": "user"
+    },
+    "adminUser": {
+      "email": "admin@turfbooking.com",
+      "phone": "9111111111",
+      "password": "AdminPass@123",
+      "name": "Admin User",
+      "role": "admin"
+    },
+    "superAdminUser": {
+      "email": "superadmin@turfbooking.com",
+      "phone": "9000000000",
+      "password": "SuperPass@123",
+      "name": "Super Admin",
+      "role": "superadmin"
+    }
+  },
+  "endpoints": {
+    "authentication": {
+      "register": {
+        "method": "POST",
+        "path": "/auth/register",
+        "description": "Register a new user",
+        "testData": {
+          "name": "Raj Kumar",
+          "email": "raj.kumar@example.com",
+          "phone": "9876543210",
+          "password": "SecurePass@123",
+          "confirmPassword": "SecurePass@123"
+        },
+        "expectedResponse": {
+          "status": 201,
+          "body": {
+            "msg": "User registered successfully",
+            "token": "JWT_TOKEN_HERE",
+            "user": {
+              "_id": "mongodb_id",
+              "name": "Raj Kumar",
+              "email": "raj.kumar@example.com",
+              "phone": "9876543210",
+              "role": "user",
+              "permissions": [],
+              "isActive": true,
+              "coins": 0
+            }
+          }
+        }
+      },
+      "login": {
+        "method": "POST",
+        "path": "/auth/login",
+        "description": "Login user and get JWT token",
+        "testData": {
+          "email": "raj.kumar@example.com",
+          "password": "SecurePass@123"
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "msg": "Login successful",
+            "token": "JWT_TOKEN_HERE",
+            "user": {
+              "_id": "mongodb_id",
+              "name": "Raj Kumar",
+              "email": "raj.kumar@example.com",
+              "role": "user"
+            }
+          }
+        }
+      },
+      "getProfile": {
+        "method": "GET",
+        "path": "/auth/profile",
+        "requiresAuth": true,
+        "description": "Get current user profile",
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "msg": "Profile fetched",
+            "user": {
+              "_id": "mongodb_id",
+              "name": "Raj Kumar",
+              "email": "raj.kumar@example.com",
+              "phone": "9876543210",
+              "role": "user",
+              "coins": 100
+            }
+          }
+        }
+      },
+      "updateProfile": {
+        "method": "PUT",
+        "path": "/auth/profile",
+        "requiresAuth": true,
+        "contentType": "multipart/form-data",
+        "description": "Update user profile with photos",
+        "testData": {
+          "name": "Raj Kumar Updated",
+          "phone": "9876543210",
+          "profilePhoto": "FILE"
+        }
+      },
+      "updatePassword": {
+        "method": "PUT",
+        "path": "/auth/update-password",
+        "requiresAuth": true,
+        "description": "Update user password",
+        "testData": {
+          "oldPassword": "SecurePass@123",
+          "newPassword": "NewSecure@456",
+          "confirmPassword": "NewSecure@456"
+        }
+      }
+    },
+    "turfs": {
+      "getAllTurfs": {
+        "method": "GET",
+        "path": "/turfs",
+        "description": "Get all turfs with pagination and filters",
+        "testData": {
+          "queryParams": {
+            "page": 1,
+            "limit": 10,
+            "city": "Mumbai",
+            "minPrice": 500,
+            "maxPrice": 2000
+          }
+        }
+      },
+      "getTurfById": {
+        "method": "GET",
+        "path": "/turfs/{id}",
+        "description": "Get specific turf details",
+        "testData": {
+          "id": "507f1f77bcf86cd799439011"
+        }
+      },
+      "createTurf": {
+        "method": "POST",
+        "path": "/turfs",
+        "requiresAuth": true,
+        "requiresPermission": "add_venue",
+        "contentType": "multipart/form-data",
+        "description": "Create new turf",
+        "testData": {
+          "name": "Elite Sports Arena",
+          "pricePerHour": 2000,
+          "peakHourSurcharge": 500,
+          "location": {
+            "address": "Connaught Place, Delhi",
+            "city": "Delhi",
+            "landmark": "Near CP",
+            "coordinates": {
+              "lat": 28.6329,
+              "lng": 77.1197
+            }
+          },
+          "sports": ["Cricket", "Football", "Badminton"],
+          "amenities": ["Floodlights", "Parking", "Canteen", "WiFi"],
+          "courts": [
+            {"name": "Court A"},
+            {"name": "Court B"}
+          ],
+          "operatingHours": [
+            {"day": "Monday", "open": "06:00", "close": "23:00"},
+            {"day": "Sunday", "open": "07:00", "close": "22:00"}
+          ]
+        }
+      },
+      "getTurfAvailability": {
+        "method": "GET",
+        "path": "/turfs/{id}/availability",
+        "description": "Get real-time slot availability",
+        "testData": {
+          "id": "507f1f77bcf86cd799439011",
+          "queryParams": {
+            "date": "2026-05-20"
+          }
+        },
+        "expectedResponse": {
+          "status": 200,
+          "body": {
+            "msg": "Availability fetched",
+            "turfId": "507f1f77bcf86cd799439011",
+            "date": "2026-05-20",
+            "slots": [
+              {
+                "startTime": "06:00",
+                "endTime": "07:00",
+                "isAvailable": true,
+                "price": 1500
+              }
+            ]
+          }
+        }
+      }
+    },
+    "bookings": {
+      "createBooking": {
+        "method": "POST",
+        "path": "/bookings",
+        "requiresAuth": true,
+        "description": "Create new booking",
+        "testData": {
+          "turfId": "507f1f77bcf86cd799439011",
+          "sport": "Cricket",
+          "date": "2026-05-20",
+          "startTime": "18:00",
+          "endTime": "19:00",
+          "courts": ["Court A"],
+          "numberOfPlayers": 11,
+          "paymentMethod": "full",
+          "splitWithSquad": false
+        },
+        "expectedResponse": {
+          "status": 201,
+          "body": {
+            "msg": "Booking created successfully",
+            "booking": {
+              "_id": "507f1f77bcf86cd799439050",
+              "turf": "507f1f77bcf86cd799439011",
+              "user": "507f1f77bcf86cd799439011",
+              "sport": "Cricket",
+              "date": "2026-05-20",
+              "startTime": "18:00",
+              "endTime": "19:00",
+              "price": 1500,
+              "status": "pending",
+              "paymentStatus": "pending",
+              "bookingId": "BK-2026051301"
+            }
+          }
+        }
+      },
+      "getMyBookings": {
+        "method": "GET",
+        "path": "/bookings/my",
+        "requiresAuth": true,
+        "description": "Get user's all bookings",
+        "testData": {
+          "queryParams": {
+            "page": 1,
+            "limit": 10,
+            "status": "confirmed"
+          }
+        }
+      },
+      "checkAvailability": {
+        "method": "GET",
+        "path": "/bookings/check-availability",
+        "description": "Check slot availability",
+        "testData": {
+          "queryParams": {
+            "turfId": "507f1f77bcf86cd799439011",
+            "date": "2026-05-20",
+            "startTime": "18:00",
+            "endTime": "19:00"
+          }
+        }
+      },
+      "processPayment": {
+        "method": "POST",
+        "path": "/bookings/{id}/pay",
+        "requiresAuth": true,
+        "description": "Process payment for booking",
+        "testData": {
+          "id": "507f1f77bcf86cd799439050",
+          "body": {
+            "amount": 1500,
+            "paymentMethod": "UPI",
+            "transactionId": "TXN123456789"
+          }
+        }
+      },
+      "updateBookingStatus": {
+        "method": "PATCH",
+        "path": "/bookings/{id}/status",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Update booking status (Admin only)",
+        "testData": {
+          "id": "507f1f77bcf86cd799439050",
+          "body": {
+            "status": "confirmed",
+            "notes": "Booking confirmed"
+          }
+        }
+      },
+      "deleteBooking": {
+        "method": "DELETE",
+        "path": "/bookings/{id}",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Cancel booking (Admin only)",
+        "testData": {
+          "id": "507f1f77bcf86cd799439050",
+          "body": {
+            "reason": "User requested cancellation",
+            "refundAmount": 1500
+          }
+        }
+      }
+    },
+    "tournaments": {
+      "getAllTournaments": {
+        "method": "GET",
+        "path": "/tournaments",
+        "description": "Get all approved tournaments",
+        "testData": {
+          "queryParams": {
+            "page": 1,
+            "sport": "Cricket",
+            "city": "Mumbai"
+          }
+        }
+      },
+      "createTournament": {
+        "method": "POST",
+        "path": "/tournaments",
+        "requiresAuth": true,
+        "requiresPermission": "manage_tournaments",
+        "contentType": "multipart/form-data",
+        "description": "Create new tournament",
+        "testData": {
+          "name": "Delhi Cricket Championship 2026",
+          "sport": "Cricket",
+          "location": "Delhi",
+          "startDate": "2026-06-01",
+          "endDate": "2026-06-15",
+          "registrationFee": 5000,
+          "description": "Elite T20 cricket tournament",
+          "maxTeams": 16
+        }
+      },
+      "registerTournament": {
+        "method": "POST",
+        "path": "/tournaments/{id}/register",
+        "requiresAuth": true,
+        "description": "Register for tournament",
+        "testData": {
+          "id": "507f1f77bcf86cd799439011",
+          "body": {
+            "teamName": "Elite Strikers",
+            "teamSize": 11,
+            "contactEmail": "team@example.com",
+            "contactPhone": "9876543210"
+          }
+        }
+      },
+      "approveTournament": {
+        "method": "PATCH",
+        "path": "/tournaments/{id}/approve",
+        "requiresAuth": true,
+        "requiresPermission": "approve_tournaments",
+        "description": "Approve tournament (Superadmin only)",
+        "testData": {
+          "id": "507f1f77bcf86cd799439011"
+        }
+      }
+    },
+    "reviews": {
+      "createReview": {
+        "method": "POST",
+        "path": "/reviews",
+        "requiresAuth": true,
+        "description": "Create turf review",
+        "testData": {
+          "turfId": "507f1f77bcf86cd799439011",
+          "rating": 5,
+          "comment": "Excellent ground with great maintenance. Highly recommended!",
+          "categories": ["quality", "cleanliness", "service"]
+        }
+      },
+      "getTurfReviews": {
+        "method": "GET",
+        "path": "/reviews/turf/{turfId}",
+        "description": "Get reviews for specific turf",
+        "testData": {
+          "turfId": "507f1f77bcf86cd799439011"
+        }
+      },
+      "getAllReviews": {
+        "method": "GET",
+        "path": "/reviews/all",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Get all reviews (Admin only)"
+      }
+    },
+    "chat": {
+      "createConversation": {
+        "method": "POST",
+        "path": "/chat/conversation",
+        "requiresAuth": true,
+        "description": "Create conversation with another user",
+        "testData": {
+          "participantId": "507f1f77bcf86cd799439012",
+          "type": "direct"
+        }
+      },
+      "sendMessage": {
+        "method": "POST",
+        "path": "/chat/message",
+        "requiresAuth": true,
+        "contentType": "multipart/form-data",
+        "description": "Send message in conversation",
+        "testData": {
+          "conversationId": "507f1f77bcf86cd799439050",
+          "content": "Hi, I have a question about the booking"
+        }
+      },
+      "getMessages": {
+        "method": "GET",
+        "path": "/chat/messages/{conversationId}",
+        "requiresAuth": true,
+        "description": "Get conversation messages",
+        "testData": {
+          "conversationId": "507f1f77bcf86cd799439050",
+          "queryParams": {
+            "page": 1,
+            "limit": 20
+          }
+        }
+      },
+      "getSuperAdmin": {
+        "method": "GET",
+        "path": "/chat/superadmin",
+        "requiresAuth": true,
+        "description": "Get superadmin contact"
+      },
+      "getAllAdmins": {
+        "method": "GET",
+        "path": "/chat/admins",
+        "requiresAuth": true,
+        "requiresPermission": "manage_chat",
+        "description": "Get all admin users"
+      },
+      "deleteMessage": {
+        "method": "DELETE",
+        "path": "/chat/message/{messageId}",
+        "requiresAuth": true,
+        "description": "Delete/unsend message",
+        "testData": {
+          "messageId": "507f1f77bcf86cd799439099"
+        }
+      },
+      "reactToMessage": {
+        "method": "POST",
+        "path": "/chat/message/{messageId}/react",
+        "requiresAuth": true,
+        "description": "Add reaction to message",
+        "testData": {
+          "messageId": "507f1f77bcf86cd799439099",
+          "body": {
+            "reaction": "😂"
+          }
+        }
+      }
+    },
+    "masters": {
+      "getMasters": {
+        "method": "GET",
+        "path": "/masters",
+        "description": "Get master data (sports, amenities, etc.)"
+      },
+      "createMaster": {
+        "method": "POST",
+        "path": "/masters",
+        "requiresAuth": true,
+        "requiresPermission": "manage_masters",
+        "contentType": "multipart/form-data",
+        "description": "Create master data entry",
+        "testData": {
+          "category": "sports",
+          "name": "Volleyball"
+        }
+      }
+    },
+    "dashboard": {
+      "getAdminStats": {
+        "method": "GET",
+        "path": "/dashboard/stats",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Get admin dashboard statistics"
+      },
+      "getPublicStats": {
+        "method": "GET",
+        "path": "/dashboard/public-stats",
+        "description": "Get public system statistics"
+      }
+    },
+    "billing": {
+      "getBillingStats": {
+        "method": "GET",
+        "path": "/billing/stats",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Get billing statistics"
+      }
+    },
+    "settings": {
+      "getSettings": {
+        "method": "GET",
+        "path": "/settings",
+        "description": "Get system settings"
+      },
+      "updateSettings": {
+        "method": "POST",
+        "path": "/settings",
+        "requiresAuth": true,
+        "requiresPermission": "manage_settings",
+        "contentType": "multipart/form-data",
+        "description": "Update system settings"
+      }
+    },
+    "venueLeads": {
+      "createVenueLead": {
+        "method": "POST",
+        "path": "/venue-leads",
+        "contentType": "multipart/form-data",
+        "description": "Submit venue lead (public form)",
+        "testData": {
+          "venueName": "Central Sports Ground",
+          "ownerName": "Akshay Patel",
+          "email": "akshay@centralsports.com",
+          "phone": "9876543210",
+          "city": "Pune",
+          "address": "Baner Road, Pune",
+          "sports": "Cricket, Football, Badminton"
+        }
+      },
+      "getVenueLeads": {
+        "method": "GET",
+        "path": "/venue-leads",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Get all venue leads (Admin only)"
+      },
+      "updateVenueLeadStatus": {
+        "method": "PATCH",
+        "path": "/venue-leads/{id}/status",
+        "requiresAuth": true,
+        "requiresRole": ["admin", "superadmin"],
+        "description": "Update venue lead status",
+        "testData": {
+          "id": "507f1f77bcf86cd799439011",
+          "body": {
+            "status": "approved",
+            "notes": "Venue meets all requirements"
+          }
+        }
+      }
+    }
+  },
+  "responseFormats": {
+    "success": {
+      "format": "JSON",
+      "example": {
+        "msg": "Operation successful",
+        "data": {}
+      }
+    },
+    "error": {
+      "format": "JSON",
+      "example": {
+        "msg": "Error message",
+        "error": "Error details"
+      }
+    },
+    "paginated": {
+      "format": "JSON",
+      "example": {
+        "msg": "Data fetched",
+        "data": [],
+        "total": 100,
+        "page": 1,
+        "pages": 10
+      }
+    }
+  },
+  "httpStatusCodes": {
+    "200": "OK - Request successful",
+    "201": "Created - Resource created successfully",
+    "400": "Bad Request - Invalid parameters",
+    "401": "Unauthorized - Authentication required",
+    "403": "Forbidden - Insufficient permissions",
+    "404": "Not Found - Resource not found",
+    "500": "Internal Server Error"
+  },
+  "commonErrors": {
+    "invalidCredentials": {
+      "status": 400,
+      "message": "Invalid credentials"
+    },
+    "userNotFound": {
+      "status": 404,
+      "message": "User not found"
+    },
+    "unauthorizedAccess": {
+      "status": 401,
+      "message": "Unauthorized - Token required"
+    },
+    "insufficientPermissions": {
+      "status": 403,
+      "message": "Access denied - Insufficient permissions"
+    },
+    "validationError": {
+      "status": 400,
+      "message": "All fields are required"
+    }
+  },
+  "passwordRequirements": {
+    "minLength": 8,
+    "requireUppercase": true,
+    "requireNumbers": true,
+    "requireSpecialCharacters": true,
+    "specialCharacters": "!@#$%^&*(),.?\\\"{};:|<>"
+  },
+  "phoneRequirements": {
+    "country": "India",
+    "format": "10-digit",
+    "startsWith": "6-9",
+    "example": "9876543210"
+  }
+}

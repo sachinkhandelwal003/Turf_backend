@@ -48,7 +48,7 @@ export const createTurf = async (req, res) => {
       "rates",
       "operatingHours",
       "courts",
-      "priceHikes",
+      "slotPricings",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -67,6 +67,14 @@ export const createTurf = async (req, res) => {
       }
     });
 
+    // Ensure slotPricings prices are numbers after parsing
+    if (Array.isArray(body.slotPricings)) {
+      body.slotPricings = body.slotPricings.map(sp => ({
+        ...sp,
+        price: Number(sp.price || 0)
+      }));
+    }
+
     // ==============================
     // CONVERT NUMBERS
     // ==============================
@@ -82,6 +90,14 @@ export const createTurf = async (req, res) => {
       body.slotDuration = Number(
         body.slotDuration
       );
+    }
+
+    // Ensure slotPricings prices are numbers after parsing
+    if (Array.isArray(body.slotPricings)) {
+      body.slotPricings = body.slotPricings.map(sp => ({
+        ...sp,
+        price: Number(sp.price || 0)
+      }));
     }
 
     // ==============================
@@ -205,7 +221,7 @@ export const updateTurf = async (req, res) => {
       "rates",
       "operatingHours",
       "courts",
-      "priceHikes",
+      "slotPricings",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -478,6 +494,44 @@ export const deleteTurf = async (req, res) => {
 // ==============================
 // GET MY TURFS
 // ==============================
+// UPDATE TURF STATUS
+// ==============================
+export const updateTurfStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const turf = await Turf.findById(req.params.id);
+    if (!turf) {
+      return res.status(404).json({ error: "Turf not found" });
+    }
+
+    // Only superadmin can approve ANY turf. 
+    // Admins can only update status if they own it (though usually superadmin does this)
+    if (req.user.role !== 'superadmin' && turf.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to update this venue status" });
+    }
+
+    turf.status = status;
+    turf.approvedBy = req.user.id;
+    turf.approvedAt = status === 'approved' ? new Date() : null;
+    await turf.save();
+
+    res.json({
+      success: true,
+      message: `Turf ${status} successfully`,
+      turf
+    });
+  } catch (err) {
+    console.error("Update Turf Status Error:", err);
+    res.status(500).json({ error: "Server Error while updating turf status" });
+  }
+};
+
+// ==============================
 export const getMyTurfs = async (req, res) => {
   try {
     let query = {
@@ -638,61 +692,5 @@ export const getTurfById = async (
 
 
 // ==============================
-// UPDATE TURF STATUS
+// GET TURF AVAILABILITY
 // ==============================
-export const updateTurfStatus =
-  async (req, res) => {
-    try {
-      const { status } = req.body;
-
-      if (
-        ![
-          "approved",
-          "rejected",
-          "pending",
-        ].includes(status)
-      ) {
-        return res.status(400).json({
-          error: "Invalid status",
-        });
-      }
-
-      const turf =
-        await Turf.findById(
-          req.params.id
-        );
-
-      if (!turf) {
-        return res.status(404).json({
-          error: "Turf not found",
-        });
-      }
-
-      turf.status = status;
-
-      if (status === "approved") {
-        turf.approvedBy =
-          req.user.id;
-
-        turf.approvedAt =
-          new Date();
-      }
-
-      await turf.save();
-
-      res.json({
-        success: true,
-        message: `Turf ${status} successfully`,
-        turf,
-      });
-    } catch (err) {
-      console.error(
-        "Update Turf Status Error:",
-        err
-      );
-
-      res.status(500).json({
-        error: "Server Error",
-      });
-    }
-  };

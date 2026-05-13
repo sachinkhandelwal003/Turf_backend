@@ -9,6 +9,9 @@ import bookingRoutes from "./routes/booking.routes.js";
 import tournamentRoutes from "./routes/tournament.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import billingRoutes from "./routes/billing.routes.js";
+import venueLeadRoutes from "./routes/venueLead.routes.js";
+import settlementRoutes from "./routes/settlement.routes.js";
 
 const app = express();
 
@@ -45,5 +48,8 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/billing", billingRoutes);
+app.use("/api/venue-leads", venueLeadRoutes);
+app.use("/api/settlements", settlementRoutes);
 
 export default app;

@@ -36,7 +36,7 @@ router.get(
 router.patch(
   "/:id/status",
   authMiddleware,
-  checkRole(["superadmin"]),
+  checkRole(["superadmin", "admin"]),
   updateTurfStatus
 );
 

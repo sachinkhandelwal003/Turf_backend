@@ -11,19 +11,34 @@ export const getDashboardStats = async (req, res) => {
   try {
     const isSuperadmin = req.user.role === "superadmin";
     const userId = req.user.id;
+    const { city, turfId } = req.query;
 
     // Filters for Admin
-    const turfQuery = isSuperadmin ? {} : { owner: userId };
-    const tournamentQuery = isSuperadmin ? {} : { owner: userId };
-    const userQuery = isSuperadmin ? {} : { createdBy: userId };
+    let turfQuery = isSuperadmin ? {} : { owner: userId };
+    let tournamentQuery = isSuperadmin ? {} : { owner: userId };
+    let userQuery = isSuperadmin ? {} : { createdBy: userId };
 
-    // Get turf IDs for non-superadmin to filter bookings
-    let userTurfIds = [];
-    if (!isSuperadmin) {
-      const userTurfs = await Turf.find({ owner: userId }).select('_id');
-      userTurfIds = userTurfs.map(t => t._id);
+    // Apply filters from query params
+    if (city) {
+      turfQuery["location.city"] = city;
     }
-    const bookingQuery = isSuperadmin ? {} : { turf: { $in: userTurfIds } };
+    if (turfId) {
+      turfQuery["_id"] = turfId;
+    }
+
+    // Get turf IDs for filtering bookings and tournaments
+    const filteredTurfs = await Turf.find(turfQuery).select('_id');
+    const filteredTurfIds = filteredTurfs.map(t => t._id);
+
+    // Filter bookings based on filtered turfs
+    const bookingQuery = { turf: { $in: filteredTurfIds } };
+    
+    // For non-superadmin, tournaments are also filtered by owner
+    // If superadmin filters by turf, we can filter tournaments that might be held at those turfs 
+    // (assuming tournaments are linked to turfs, but let's stick to owner for now or add turf filter to tournaments if needed)
+    if (turfId && isSuperadmin) {
+      tournamentQuery["turf"] = turfId; // Assuming tournament model has a turf field
+    }
 
     const [
       totalUsers,
@@ -61,14 +76,28 @@ export const getDashboardStats = async (req, res) => {
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
 
-    // Calculate Booking Revenue
+    // Calculate Split Booking Revenue (Offline vs Wallet/Online)
     const bookingRevenueResult = await Booking.aggregate([
       { $match: { ...bookingQuery, status: "confirmed" } },
-      { $group: { _id: null, total: { $sum: "$paidAmount" } } }
+      { 
+        $group: { 
+          _id: null, 
+          total: { $sum: "$paidAmount" },
+          offline: { 
+            $sum: { $cond: [{ $eq: ["$isOffline", true] }, "$paidAmount", 0] } 
+          },
+          wallet: { 
+            $sum: { $cond: [{ $ne: ["$isOffline", true] }, "$paidAmount", 0] } 
+          }
+        } 
+      }
     ]);
-    const bookingRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
 
-    // Calculate Tournament Revenue
+    const bookingRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
+    const offlineRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].offline : 0;
+    const walletRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].wallet : 0;
+
+    // Calculate Tournament Revenue (Usually online/wallet)
     const tournaments = await Tournament.find(tournamentQuery).select("registeredTeams");
     let tournamentRevenue = 0;
     tournaments.forEach(t => {
@@ -80,6 +109,7 @@ export const getDashboardStats = async (req, res) => {
     });
 
     const totalRevenue = bookingRevenue + tournamentRevenue;
+    const totalWalletRevenue = walletRevenue + tournamentRevenue; // Assuming tournaments are online
 
     // Get all turfs (removed .limit(10) to show all data as requested)
     const recentTurfs = await Turf.find(turfQuery)
@@ -127,7 +157,9 @@ export const getDashboardStats = async (req, res) => {
         revenue: {
           total: totalRevenue,
           bookings: bookingRevenue,
-          tournaments: tournamentRevenue
+          tournaments: tournamentRevenue,
+          wallet: totalWalletRevenue,
+          offline: offlineRevenue
         },
         roles: totalRoles
       },

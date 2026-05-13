@@ -1,0 +1,2450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turf Booking API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 40px;
+            border-radius: 8px;
+        }
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .toc {
+            background-color: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 40px;
+            border-radius: 4px;
+        }
+        .toc h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .toc ul {
+            list-style: none;
+        }
+        .toc li {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .section {
+            margin-bottom: 60px;
+            page-break-inside: avoid;
+        }
+        .section h2 {
+            background-color: #667eea;
+            color: white;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 1.8em;
+        }
+        .endpoint {
+            background-color: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .method {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            min-width: 60px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        .method.get {
+            background-color: #61affe;
+        }
+        .method.post {
+            background-color: #49cc90;
+        }
+        .method.put {
+            background-color: #fca130;
+        }
+        .method.patch {
+            background-color: #50e3c2;
+        }
+        .method.delete {
+            background-color: #f93e3e;
+        }
+        .path {
+            font-family: 'Courier New', monospace;
+            background-color: #f0f0f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex: 1;
+            min-width: 200px;
+        }
+        .auth-badge {
+            background-color: #ffc107;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .auth-badge.required {
+            background-color: #f44336;
+            color: white;
+        }
+        .description {
+            margin-bottom: 15px;
+            color: #666;
+        }
+        .endpoint-section {
+            margin: 15px 0;
+        }
+        .endpoint-section h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .code-block {
+            background-color: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .code-block.json {
+            max-height: 300px;
+        }
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .params-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .params-table td {
+            border-bottom: 1px solid #ddd;
+            padding: 10px;
+        }
+        .params-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .params-table .param-name {
+            font-family: 'Courier New', monospace;
+            color: #667eea;
+        }
+        .params-table .param-type {
+            background-color: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-right: 5px;
+            font-weight: bold;
+        }
+        .badge.required {
+            background-color: #f44336;
+            color: white;
+        }
+        .badge.optional {
+            background-color: #4caf50;
+            color: white;
+        }
+        .badge.admin {
+            background-color: #ff9800;
+            color: white;
+        }
+        .response-example {
+            margin-bottom: 15px;
+        }
+        .response-code {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .response-code.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .info-box.warning {
+            background-color: #fff3e0;
+            border-left-color: #ff9800;
+        }
+        .info-box.error {
+            background-color: #ffebee;
+            border-left-color: #f44336;
+        }
+        .info-box.success {
+            background-color: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            color: #999;
+            margin-top: 40px;
+        }
+        .permissions-list {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .permissions-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .permissions-list li {
+            margin: 5px 0;
+        }
+        .testing-tips {
+            background-color: #fff9c4;
+            border-left: 4px solid #fbc02d;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .testing-tips h4 {
+            margin-bottom: 10px;
+        }
+        .testing-tips ul {
+            margin-left: 20px;
+        }
+        .testing-tips li {
+            margin-bottom: 8px;
+        }
+        table {
+            margin-bottom: 20px;
+        }
+        .url-base {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 20px;
+            color: #667eea;
+            font-weight: bold;
+        }
+        @media print {
+            .page-break {
+                page-break-after: always;
+            }
+            .container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏟️ Turf Booking API Documentation</h1>
+            <p>Complete API Reference with Testing Examples</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Version 1.0.0 | May 2026</p>
+        </header>
+
+        <div class="toc">
+            <h2>📋 Table of Contents</h2>
+            <ul>
+                <li><a href="#introduction">Introduction & Setup</a></li>
+                <li><a href="#authentication">Authentication</a></li>
+                <li><a href="#auth-endpoints">Auth Endpoints</a></li>
+                <li><a href="#turf-endpoints">Turf Endpoints</a></li>
+                <li><a href="#booking-endpoints">Booking Endpoints</a></li>
+                <li><a href="#tournament-endpoints">Tournament Endpoints</a></li>
+                <li><a href="#review-endpoints">Review Endpoints</a></li>
+                <li><a href="#chat-endpoints">Chat Endpoints</a></li>
+                <li><a href="#master-endpoints">Master Data Endpoints</a></li>
+                <li><a href="#dashboard-endpoints">Dashboard Endpoints</a></li>
+                <li><a href="#billing-endpoints">Billing Endpoints</a></li>
+                <li><a href="#settings-endpoints">Settings Endpoints</a></li>
+                <li><a href="#venue-lead-endpoints">Venue Lead Endpoints</a></li>
+            </ul>
+        </div>
+
+        <div id="introduction" class="section">
+            <h2>🚀 Introduction & Setup</h2>
+            <div class="url-base">
+                Base URL: http://localhost:5000/api
+            </div>
+            <h3>Environment & Testing</h3>
+            <div class="info-box">
+                <strong>Local Development:</strong> http://localhost:5000/api<br>
+                <strong>Testing Tools:</strong> Postman, Insomnia, Thunder Client<br>
+                <strong>Note:</strong> All protected endpoints require JWT token in Authorization header
+            </div>
+            <h3>Authentication Header Format</h3>
+            <div class="code-block">Authorization: Bearer {JWT_TOKEN}</div>
+            <h3>CORS Allowed Origins</h3>
+            <div class="code-block">
+http://localhost:3000
+http://localhost:3001
+http://localhost:3002
+http://localhost:3003
+http://localhost:3005
+http://127.0.0.1:3000-3005
+            </div>
+        </div>
+
+        <div id="authentication" class="section">
+            <h2>🔐 Authentication & Authorization</h2>
+            <h3>JWT Token Structure</h3>
+            <p class="description">JWT tokens contain user ID, role, and permissions. Token expires in 7 days.</p>
+            <div class="code-block json">
+{
+  "id": "user_mongo_id",
+  "role": "user|admin|superadmin",
+  "permissions": ["permission1", "permission2"],
+  "iat": 1234567890,
+  "exp": 1234654290
+}
+            </div>
+            <h3>User Roles</h3>
+            <table class="params-table">
+                <tr>
+                    <th>Role</th>
+                    <th>Description</th>
+                    <th>Permissions</th>
+                </tr>
+                <tr>
+                    <td><strong>user</strong></td>
+                    <td>Regular user/player</td>
+                    <td>Create bookings, view turfs, write reviews</td>
+                </tr>
+                <tr>
+                    <td><strong>admin</strong></td>
+                    <td>Venue admin/operator</td>
+                    <td>Manage own turfs, manage bookings, view analytics</td>
+                </tr>
+                <tr>
+                    <td><strong>superadmin</strong></td>
+                    <td>System administrator</td>
+                    <td>Full system access, manage all users, RBAC</td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="auth-endpoints" class="section">
+            <h2>👤 Authentication Endpoints</h2>
+            <p class="description">Base path: /api/auth</p>
+
+            <!-- Register -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/register</span>
+                </div>
+                <p class="description">Register a new user account</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">name <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Full name of the user</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">email <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Valid email address (must be unique)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">phone <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>10-digit Indian mobile number (6-9 followed by 9 digits)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">password <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Min 8 chars, 1 uppercase, 1 number, 1 special character</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">confirmPassword <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Must match password field</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "name": "Raj Kumar",
+  "email": "raj.kumar@example.com",
+  "phone": "9876543210",
+  "password": "SecurePass@123",
+  "confirmPassword": "SecurePass@123"
+}
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 201 Created</h4>
+                    <div class="code-block json">
+{
+  "msg": "User registered successfully",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "Raj Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "9876543210",
+    "role": "user",
+    "permissions": [],
+    "isActive": true,
+    "coins": 0,
+    "createdAt": "2026-05-13T10:30:00.000Z"
+  }
+}
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Error Responses</h4>
+                    <div class="response-example">
+                        <span class="response-code error">400 Bad Request</span>
+                        <div class="code-block json">
+{
+  "msg": "All fields are required"
+}
+                        </div>
+                    </div>
+                    <div class="response-example">
+                        <span class="response-code error">400 Bad Request</span>
+                        <div class="code-block json">
+{
+  "msg": "Passwords do not match"
+}
+                        </div>
+                    </div>
+                    <div class="response-example">
+                        <span class="response-code error">400 Bad Request</span>
+                        <div class="code-block json">
+{
+  "msg": "Invalid phone number format. Must be a valid 10-digit Indian number."
+}
+                        </div>
+                    </div>
+                </div>
+                <div class="testing-tips">
+                    <h4>💡 Testing Tips</h4>
+                    <ul>
+                        <li>Email must be unique - can't register same email twice</li>
+                        <li>Phone number must be a valid 10-digit Indian number</li>
+                        <li>Password must have uppercase, number, and special character</li>
+                        <li>Save the JWT token for subsequent API calls</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Login -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/login</span>
+                </div>
+                <p class="description">Login user and receive JWT token</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">email <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Registered email address</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">password <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Account password</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "email": "raj.kumar@example.com",
+  "password": "SecurePass@123"
+}
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "Raj Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "9876543210",
+    "role": "user",
+    "permissions": []
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Profile -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/profile</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get current logged-in user profile</p>
+                <div class="endpoint-section">
+                    <h4>Headers</h4>
+                    <div class="code-block">
+Authorization: Bearer {JWT_TOKEN}
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Profile fetched",
+  "user": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "Raj Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "9876543210",
+    "role": "user",
+    "profilePhoto": "/uploads/photo.jpg",
+    "coverPhoto": "/uploads/cover.jpg",
+    "coins": 100
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Profile -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/profile</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Update user profile including photos (multipart/form-data)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">name <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>New name</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">phone <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>New phone number</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">profilePhoto <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">file</span></td>
+                            <td>Profile photo (image file)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">coverPhoto <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">file</span></td>
+                            <td>Cover photo (image file)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Profile updated successfully",
+  "user": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "Raj Kumar Updated",
+    "profilePhoto": "/uploads/profile_507f1f77.jpg"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Password -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/update-password</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Change user password</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">oldPassword <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Current password</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">newPassword <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>New password (must meet strength requirements)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">confirmPassword <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Must match newPassword</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "oldPassword": "SecurePass@123",
+  "newPassword": "NewSecure@456",
+  "confirmPassword": "NewSecure@456"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RBAC: Get Users (Superadmin/Admin) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/users</span>
+                    <span class="auth-badge required">Auth + Permissions</span>
+                </div>
+                <p class="description">Get all users (requires manage_users or manage_permissions permission)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_users OR manage_permissions</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "All users fetched",
+  "users": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Raj Kumar",
+      "email": "raj.kumar@example.com",
+      "phone": "9876543210",
+      "role": "user",
+      "permissions": ["view_venues"],
+      "isActive": true,
+      "coins": 100
+    }
+  ],
+  "total": 50,
+  "page": 1
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create User (Superadmin/Admin) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/users</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Create new user (Superadmin/Admin with manage_users permission)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_users</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "9123456789",
+  "password": "SecurePass@123",
+  "role": "user",
+  "permissions": ["view_venues", "create_booking"]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Roles -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/roles</span>
+                    <span class="auth-badge required">Auth + Permissions</span>
+                </div>
+                <p class="description">Get all available roles in the system</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_roles OR manage_permissions</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "All roles fetched",
+  "roles": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "user",
+      "permissions": ["view_venues", "create_booking", "write_review"]
+    },
+    {
+      "_id": "507f1f77bcf86cd799439012",
+      "name": "admin",
+      "permissions": ["add_venue", "edit_venue", "manage_bookings"]
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Permissions -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/permissions</span>
+                    <span class="auth-badge required">Auth + Permissions</span>
+                </div>
+                <p class="description">Get all available permissions in the system</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "All permissions fetched",
+  "permissions": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "view_venues",
+      "description": "View all turfs/venues"
+    },
+    {
+      "_id": "507f1f77bcf86cd799439012",
+      "name": "create_booking",
+      "description": "Create new bookings"
+    },
+    {
+      "_id": "507f1f77bcf86cd799439013",
+      "name": "manage_users",
+      "description": "Manage user accounts"
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <div id="turf-endpoints" class="section">
+            <h2>⛳ Turf/Venue Endpoints</h2>
+            <p class="description">Base path: /api/turfs</p>
+
+            <!-- Get All Turfs (Public) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                </div>
+                <p class="description">Get all turfs (public, paginated with filters)</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">page <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Page number (default: 1)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">limit <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Results per page (default: 10)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">city <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by city</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sport <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by sport type (Cricket, Football, Badminton, etc.)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">minPrice <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Minimum price per hour</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">maxPrice <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Maximum price per hour</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+GET /api/turfs?page=1&limit=10&city=Mumbai&minPrice=500&maxPrice=2000
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "All turfs fetched",
+  "turfs": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Premier Cricket Ground",
+      "location": {
+        "address": "Worli, Mumbai",
+        "city": "Mumbai",
+        "landmark": "Near Worli Sea Face",
+        "coordinates": {
+          "lat": 19.0176,
+          "lng": 72.8194
+        }
+      },
+      "pricePerHour": 1500,
+      "peakHourSurcharge": 300,
+      "sports": ["Cricket", "Football"],
+      "amenities": ["Floodlights", "Parking", "Canteen"],
+      "images": ["/uploads/image1.jpg", "/uploads/image2.jpg"],
+      "logo": "/uploads/logo.jpg",
+      "rating": 4.5,
+      "reviews": 150,
+      "isActive": true
+    }
+  ],
+  "total": 25,
+  "page": 1,
+  "pages": 3
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Single Turf -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/:id</span>
+                </div>
+                <p class="description">Get detailed information about a specific turf</p>
+                <div class="endpoint-section">
+                    <h4>URL Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">id <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>MongoDB ObjectId of the turf</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+GET /api/turfs/507f1f77bcf86cd799439011
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Turf fetched",
+  "turf": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "Premier Cricket Ground",
+    "location": {
+      "address": "Worli, Mumbai",
+      "city": "Mumbai",
+      "landmark": "Near Worli Sea Face",
+      "coordinates": {
+        "lat": 19.0176,
+        "lng": 72.8194
+      }
+    },
+    "pricePerHour": 1500,
+    "peakHourSurcharge": 300,
+    "sports": ["Cricket", "Football"],
+    "amenities": ["Floodlights", "Parking", "Canteen", "WiFi"],
+    "courts": [
+      {
+        "name": "Court A",
+        "isActive": true
+      },
+      {
+        "name": "Court B",
+        "isActive": true
+      }
+    ],
+    "operatingHours": [
+      {
+        "day": "Monday",
+        "open": "06:00",
+        "close": "23:00"
+      },
+      {
+        "day": "Sunday",
+        "open": "07:00",
+        "close": "22:00"
+      }
+    ],
+    "rates": [
+      {
+        "day": "Monday",
+        "price": 1500,
+        "isPeak": false
+      },
+      {
+        "day": "Saturday",
+        "price": 2000,
+        "isPeak": true
+      }
+    ],
+    "images": ["/uploads/image1.jpg", "/uploads/image2.jpg", "/uploads/image3.jpg"],
+    "logo": "/uploads/logo.jpg",
+    "createdBy": "507f1f77bcf86cd799439099",
+    "rating": 4.5,
+    "reviews": 150,
+    "isActive": true,
+    "createdAt": "2026-01-15T10:30:00.000Z"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Turf (Admin/Superadmin) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Create a new turf (multipart/form-data with file uploads)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>add_venue</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">name <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Name of the turf</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">location <span class="badge required">Required</span></td>
+                            <td><span class="param-type">JSON string</span></td>
+                            <td>Location object with address, city, coordinates</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">pricePerHour <span class="badge required">Required</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Base price per hour</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">peakHourSurcharge <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Additional charge for peak hours</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sports <span class="badge required">Required</span></td>
+                            <td><span class="param-type">JSON array</span></td>
+                            <td>Array of sports available</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">amenities <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">JSON array</span></td>
+                            <td>Array of amenities (Parking, Canteen, etc.)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">courts <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">JSON array</span></td>
+                            <td>Array of courts with names</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">operatingHours <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">JSON array</span></td>
+                            <td>Operating hours by day of week</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">rates <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">JSON array</span></td>
+                            <td>Dynamic pricing by day of week</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">logo <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">file</span></td>
+                            <td>Logo image file</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">images <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">files</span></td>
+                            <td>Multiple images (up to 10)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "name": "Elite Sports Arena",
+  "location": "{\"address\":\"Connaught Place, Delhi\",\"city\":\"Delhi\",\"landmark\":\"Near CP\",\"coordinates\":{\"lat\":28.6329,\"lng\":77.1197}}",
+  "pricePerHour": 2000,
+  "peakHourSurcharge": 500,
+  "sports": "[\"Cricket\",\"Football\",\"Badminton\"]",
+  "amenities": "[\"Floodlights\",\"Parking\",\"Canteen\",\"WiFi\",\"Locker\"]",
+  "courts": "[{\"name\":\"Court A\"},{\"name\":\"Court B\"}]",
+  "operatingHours": "[{\"day\":\"Monday\",\"open\":\"06:00\",\"close\":\"23:00\"},{\"day\":\"Sunday\",\"open\":\"07:00\",\"close\":\"22:00\"}]",
+  "rates": "[{\"day\":\"Monday\",\"price\":2000,\"isPeak\":false},{\"day\":\"Saturday\",\"price\":2500,\"isPeak\":true}]"
+}
+(Plus: logo and images files as multipart)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Turf -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Update turf details (admin only)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>edit_venue</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Turf -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Delete a turf (admin only)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_turfs</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Turf Availability -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/:id/availability</span>
+                </div>
+                <p class="description">Get real-time slot availability for a turf on specific date</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">date <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Date in YYYY-MM-DD format</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+GET /api/turfs/507f1f77bcf86cd799439011/availability?date=2026-05-20
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Availability fetched",
+  "turfId": "507f1f77bcf86cd799439011",
+  "date": "2026-05-20",
+  "slots": [
+    {
+      "startTime": "06:00",
+      "endTime": "07:00",
+      "isAvailable": true,
+      "price": 1500
+    },
+    {
+      "startTime": "07:00",
+      "endTime": "08:00",
+      "isAvailable": false,
+      "price": 1500,
+      "reason": "Already booked"
+    },
+    {
+      "startTime": "08:00",
+      "endTime": "09:00",
+      "isAvailable": true,
+      "price": 1500
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <div id="booking-endpoints" class="section">
+            <h2>📅 Booking Endpoints</h2>
+            <p class="description">Base path: /api/bookings</p>
+
+            <!-- Create Booking -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Create a new booking for a turf slot</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">turfId <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>MongoDB ID of the turf</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sport <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Sport type (Cricket, Football, Badminton, etc.)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">date <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Date in YYYY-MM-DD format</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">startTime <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Start time in HH:mm format</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">endTime <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>End time in HH:mm format</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">courts <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">array</span></td>
+                            <td>Array of court names</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">numberOfPlayers <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Number of players (default: 1)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">paymentMethod <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Payment method (full, partial)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">splitWithSquad <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">boolean</span></td>
+                            <td>Whether to split cost with squad members</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "turfId": "507f1f77bcf86cd799439011",
+  "sport": "Cricket",
+  "date": "2026-05-20",
+  "startTime": "18:00",
+  "endTime": "19:00",
+  "courts": ["Court A"],
+  "numberOfPlayers": 11,
+  "paymentMethod": "full",
+  "splitWithSquad": false
+}
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 201 Created</h4>
+                    <div class="code-block json">
+{
+  "msg": "Booking created successfully",
+  "booking": {
+    "_id": "507f1f77bcf86cd799439050",
+    "turf": "507f1f77bcf86cd799439011",
+    "user": "507f1f77bcf86cd799439011",
+    "sport": "Cricket",
+    "date": "2026-05-20",
+    "startTime": "18:00",
+    "endTime": "19:00",
+    "courts": ["Court A"],
+    "price": 1500,
+    "totalAmount": 1500,
+    "paidAmount": 0,
+    "balanceAmount": 1500,
+    "status": "pending",
+    "paymentStatus": "pending",
+    "bookingId": "BK-2026051301",
+    "slots": ["18:00 - 19:00"],
+    "createdAt": "2026-05-13T10:30:00.000Z"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get My Bookings -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/my</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get all bookings of the current user (paginated)</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">page <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Page number (default: 1)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">limit <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Results per page (default: 10)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">status <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by status (pending, confirmed, completed, cancelled)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+GET /api/bookings/my?page=1&limit=10&status=confirmed
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "User bookings fetched",
+  "bookings": [
+    {
+      "_id": "507f1f77bcf86cd799439050",
+      "turfId": "507f1f77bcf86cd799439011",
+      "turfName": "Premier Cricket Ground",
+      "sport": "Cricket",
+      "date": "2026-05-20",
+      "startTime": "18:00",
+      "endTime": "19:00",
+      "totalAmount": 1500,
+      "status": "confirmed",
+      "paymentStatus": "paid",
+      "bookingId": "BK-2026051301"
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "pages": 2
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Single Booking -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get details of a specific booking</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Booking fetched",
+  "booking": {
+    "_id": "507f1f77bcf86cd799439050",
+    "turf": {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Premier Cricket Ground"
+    },
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Raj Kumar"
+    },
+    "sport": "Cricket",
+    "date": "2026-05-20",
+    "startTime": "18:00",
+    "endTime": "19:00",
+    "courts": ["Court A"],
+    "totalAmount": 1500,
+    "paidAmount": 1500,
+    "paymentStatus": "paid",
+    "status": "confirmed",
+    "slots": ["18:00 - 19:00"]
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Payment -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/:id/pay</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Process payment for a booking</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">amount <span class="badge required">Required</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Amount to pay</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">paymentMethod <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Payment method (Credit Card, Debit Card, UPI, etc.)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">transactionId <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Transaction reference ID</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "amount": 1500,
+  "paymentMethod": "UPI",
+  "transactionId": "TXN123456789"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Booking Status -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method patch">PATCH</span>
+                    <span class="path">/:id/status</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Update booking status (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "status": "confirmed",
+  "notes": "Booking confirmed - please arrive 10 minutes early"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Check Availability -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/check-availability</span>
+                </div>
+                <p class="description">Check if a specific slot is available</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">turfId <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Turf MongoDB ID</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">date <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Date in YYYY-MM-DD format</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">startTime <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Start time in HH:mm format</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">endTime <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>End time in HH:mm format</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+GET /api/bookings/check-availability?turfId=507f1f77bcf86cd799439011&date=2026-05-20&startTime=18:00&endTime=19:00
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "available": true,
+  "price": 1500,
+  "peakHour": false,
+  "message": "Slot is available"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Booking -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Cancel/Delete a booking (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "reason": "User requested cancellation",
+  "refundAmount": 1500
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <div id="tournament-endpoints" class="section">
+            <h2>🏆 Tournament Endpoints</h2>
+            <p class="description">Base path: /api/tournaments</p>
+
+            <!-- Get Tournaments (Public) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                </div>
+                <p class="description">Get all approved tournaments (public listing)</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">page <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Page number</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sport <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by sport type</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">city <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by city</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Get Single Tournament -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/:id</span>
+                </div>
+                <p class="description">Get detailed information about a specific tournament</p>
+            </div>
+
+            <!-- Create Tournament -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Create a new tournament (multipart/form-data)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_tournaments</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">name <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Tournament name</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sport <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Sport type</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">location <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Tournament location/city</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">startDate <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Start date (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">endDate <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>End date (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">registrationFee <span class="badge required">Required</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Registration fee per team/player</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">description <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Tournament description</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">maxTeams <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Maximum number of teams</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">image <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">file</span></td>
+                            <td>Tournament cover image</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">gallery <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">files</span></td>
+                            <td>Gallery images (up to 8)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "name": "Delhi Cricket Championship 2026",
+  "sport": "Cricket",
+  "location": "Delhi",
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-15",
+  "registrationFee": 5000,
+  "description": "Elite T20 cricket tournament",
+  "maxTeams": 16
+}
+(Plus: image and gallery files as multipart)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Register for Tournament -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/:id/register</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Register a team/player for a tournament</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "teamName": "Elite Strikers",
+  "teamSize": 11,
+  "contactEmail": "team@example.com",
+  "contactPhone": "9876543210"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Approve Tournament -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method patch">PATCH</span>
+                    <span class="path">/:id/approve</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Approve tournament for public visibility (Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>approve_tournaments</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="review-endpoints" class="section">
+            <h2>⭐ Review Endpoints</h2>
+            <p class="description">Base path: /api/reviews</p>
+
+            <!-- Create Review -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Create a review for a turf</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">turfId <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Turf MongoDB ID</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">rating <span class="badge required">Required</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Rating 1-5 stars</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">comment <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Review text comment</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">categories <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">array</span></td>
+                            <td>Review categories (quality, cleanliness, service, price)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "turfId": "507f1f77bcf86cd799439011",
+  "rating": 5,
+  "comment": "Excellent ground with great maintenance. Highly recommended!",
+  "categories": ["quality", "cleanliness", "service"]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Turf Reviews -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/turf/:turfId</span>
+                </div>
+                <p class="description">Get all reviews for a specific turf (public)</p>
+            </div>
+
+            <!-- Get All Reviews -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/all</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Get all reviews in system (Admin/Superadmin only)</p>
+            </div>
+
+            <!-- Approve/Update Review -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method patch">PATCH</span>
+                    <span class="path">/:id/approve</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Approve or update review status (Admin/Superadmin only)</p>
+            </div>
+
+            <!-- Delete Review -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Delete a review (Admin/Superadmin only)</p>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <div id="chat-endpoints" class="section">
+            <h2>💬 Chat Endpoints</h2>
+            <p class="description">Base path: /api/chat</p>
+
+            <!-- Create Conversation -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/conversation</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Create or get existing conversation between users</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "participantId": "507f1f77bcf86cd799439012",
+  "type": "direct"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Message -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/message</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Send a message in a conversation (supports file attachments)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">conversationId <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Conversation ID</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">content <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Message text</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">file <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">file</span></td>
+                            <td>Attached file (image, document, etc.)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "conversationId": "507f1f77bcf86cd799439050",
+  "content": "Hi, I have a question about the booking"
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Messages -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/messages/:conversationId</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get all messages in a conversation (paginated)</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">page <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Page number</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">limit <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Results per page (default: 20)</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Get User Conversations -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/conversations/:userId</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get all conversations for a user</p>
+            </div>
+
+            <!-- Get Superadmin -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/superadmin</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Get superadmin contact info for support</p>
+            </div>
+
+            <!-- Get All Admins -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/admins</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Get list of all admin users (manage_chat permission)</p>
+            </div>
+
+            <!-- Delete Message -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/message/:messageId</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Delete/unsend a message</p>
+            </div>
+
+            <!-- React to Message -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/message/:messageId/react</span>
+                    <span class="auth-badge required">Auth Required</span>
+                </div>
+                <p class="description">Add reaction/emoji to a message</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "reaction": "😂"
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="master-endpoints" class="section">
+            <h2>📚 Master Data Endpoints</h2>
+            <p class="description">Base path: /api/masters</p>
+
+            <!-- Get Masters (Public) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                </div>
+                <p class="description">Get all master data (sports, amenities, etc.) - Public</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Master data fetched",
+  "masters": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "category": "sports",
+      "name": "Cricket",
+      "image": "/uploads/cricket.jpg",
+      "isActive": true
+    },
+    {
+      "_id": "507f1f77bcf86cd799439012",
+      "category": "amenities",
+      "name": "Floodlights",
+      "image": "/uploads/floodlights.jpg",
+      "isActive": true
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Master -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Create master data entry (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_masters</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <div class="code-block json">
+{
+  "category": "sports",
+  "name": "Volleyball"
+}
+(Plus: image file as multipart)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Master -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Update master data entry</p>
+            </div>
+
+            <!-- Delete Master -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/:id</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Delete master data entry</p>
+            </div>
+        </div>
+
+        <div id="dashboard-endpoints" class="section">
+            <h2>📊 Dashboard & Analytics Endpoints</h2>
+            <p class="description">Base path: /api/dashboard</p>
+
+            <!-- Get Dashboard Stats (Admin) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/stats</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Get admin dashboard statistics (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Dashboard stats fetched",
+  "stats": {
+    "totalBookings": 1250,
+    "totalRevenue": 2500000,
+    "totalTurfs": 45,
+    "totalUsers": 3500,
+    "averageRating": 4.3,
+    "monthlyBookings": 350,
+    "monthlyRevenue": 875000,
+    "topTurfs": [
+      {
+        "name": "Premier Ground",
+        "bookings": 125,
+        "revenue": 187500
+      }
+    ]
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Public Stats -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/public-stats</span>
+                </div>
+                <p class="description">Get public system statistics (no auth required)</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "totalTurfs": 45,
+  "totalUsers": 3500,
+  "totalBookings": 1250,
+  "totalTournaments": 25,
+  "topRatedTurfs": [
+    {
+      "name": "Elite Arena",
+      "rating": 4.8,
+      "reviews": 450
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="billing-endpoints" class="section">
+            <h2>💳 Billing Endpoints</h2>
+            <p class="description">Base path: /api/billing</p>
+
+            <!-- Get Billing Stats -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/stats</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Get billing and payment statistics (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>Admin or Superadmin role</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Billing stats fetched",
+  "stats": {
+    "totalRevenue": 2500000,
+    "totalTransactions": 1250,
+    "successfulTransactions": 1200,
+    "failedTransactions": 50,
+    "pendingTransactions": 15,
+    "averageTransactionAmount": 2000,
+    "refunds": 15,
+    "refundAmount": 30000,
+    "monthlyRevenue": 875000,
+    "dailyRevenue": 28571,
+    "topPaymentMethods": {
+      "UPI": 450,
+      "CreditCard": 350,
+      "DebitCard": 300,
+      "NetBanking": 100
+    }
+  }
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-endpoints" class="section">
+            <h2>⚙️ Settings Endpoints</h2>
+            <p class="description">Base path: /api/settings</p>
+
+            <!-- Get Settings (Public) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                </div>
+                <p class="description">Get system settings and configuration (public)</p>
+                <div class="endpoint-section">
+                    <h4>Success Response - 200 OK</h4>
+                    <div class="code-block json">
+{
+  "msg": "Settings fetched",
+  "settings": {
+    "appName": "Turf Booking System",
+    "logo": "/uploads/logo.jpg",
+    "backgroundImage": "/uploads/bg.jpg",
+    "contactEmail": "support@turfbooking.com",
+    "contactPhone": "1800-TURF-123",
+    "socialLinks": {
+      "facebook": "https://facebook.com/...",
+      "instagram": "https://instagram.com/...",
+      "twitter": "https://twitter.com/..."
+    },
+    "platformFeePercentage": 5,
+    "cancellationPolicy": "Free cancellation up to 24 hours before booking"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Settings -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth + Permission</span>
+                </div>
+                <p class="description">Update system settings (multipart/form-data)</p>
+                <div class="endpoint-section">
+                    <h4>Required Permissions</h4>
+                    <div class="permissions-list">
+                        <ul>
+                            <li>manage_settings</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <div class="code-block json">
+{
+  "appName": "Turf Booking Pro",
+  "contactEmail": "new-email@turfbooking.com",
+  "platformFeePercentage": 6,
+  "cancellationPolicy": "Free cancellation up to 48 hours"
+}
+(Plus: frontendLogo, backendLogo, image files as multipart)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="venue-lead-endpoints" class="section">
+            <h2>🏪 Venue Lead Endpoints</h2>
+            <p class="description">Base path: /api/venue-leads</p>
+
+            <!-- Create Venue Lead (Public) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/</span>
+                </div>
+                <p class="description">Submit new venue lead (public form - no auth required)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body (Form Data)</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">venueName <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Name of the venue</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">ownerName <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Venue owner/manager name</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">email <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Contact email</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">phone <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Contact phone number</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">city <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>City location</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">address <span class="badge required">Required</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Full venue address</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">sports <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Comma-separated sports available</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">photos <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">files</span></td>
+                            <td>Multiple venue photos (up to 5)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Test Data - Request</h4>
+                    <div class="code-block json">
+{
+  "venueName": "Central Sports Ground",
+  "ownerName": "Akshay Patel",
+  "email": "akshay@centralsports.com",
+  "phone": "9876543210",
+  "city": "Pune",
+  "address": "Baner Road, Pune",
+  "sports": "Cricket, Football, Badminton"
+}
+(Plus: photos files as multipart)
+                    </div>
+                </div>
+                <div class="endpoint-section">
+                    <h4>Success Response - 201 Created</h4>
+                    <div class="code-block json">
+{
+  "msg": "Venue lead submitted successfully",
+  "lead": {
+    "_id": "507f1f77bcf86cd799439011",
+    "venueName": "Central Sports Ground",
+    "ownerName": "Akshay Patel",
+    "email": "akshay@centralsports.com",
+    "phone": "9876543210",
+    "city": "Pune",
+    "address": "Baner Road, Pune",
+    "status": "pending",
+    "createdAt": "2026-05-13T10:30:00.000Z"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Venue Leads (Admin) -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Get all venue leads submitted (Admin/Superadmin only)</p>
+                <div class="endpoint-section">
+                    <h4>Query Parameters</h4>
+                    <table class="params-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">page <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">number</span></td>
+                            <td>Page number</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">status <span class="badge optional">Optional</span></td>
+                            <td><span class="param-type">string</span></td>
+                            <td>Filter by status (pending, approved, rejected)</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Update Venue Lead Status -->
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method patch">PATCH</span>
+                    <span class="path">/:id/status</span>
+                    <span class="auth-badge required">Auth + Admin</span>
+                </div>
+                <p class="description">Update venue lead status (approve/reject)</p>
+                <div class="endpoint-section">
+                    <h4>Request Body</h4>
+                    <div class="code-block json">
+{
+  "status": "approved",
+  "notes": "Venue meets all requirements"
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 Turf Booking System | API Documentation v1.0.0</p>
+            <p>For more information, contact: developer@turfbooking.com</p>
+        </footer>
+    </div>
+</body>
+</html>

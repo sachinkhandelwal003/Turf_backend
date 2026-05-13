@@ -69,7 +69,7 @@ export const createBooking = async (req, res) => {
     const { 
       turfId, sport, date, slot, slots, price, courts, 
       paymentStrategy, splitWithSquad, numberOfPlayers, convenienceFee,
-      isOffline, userId, usedCoins // Optional userId for offline bookings by admin
+      isOffline, userId, usedCoins, paymentMethod // Accept paymentMethod
     } = req.body;
 
     const slotList = slots || (slot ? [slot] : []);
@@ -119,11 +119,47 @@ export const createBooking = async (req, res) => {
     }
 
     // If we reach here, all slots are available
+    const turf = await Turf.findById(turfId);
+    if (!turf) {
+      return res.status(404).json({ error: "Turf not found" });
+    }
+
+    // Calculate dynamic price based on slots
+    let calculatedPrice = 0;
+    const dayName = new Date(date).toLocaleDateString("en-US", { weekday: "long" });
+    const dayRate = turf.rates?.find(r => r.day === dayName)?.price;
+    const baseHourlyRate = Number(dayRate ?? turf.pricePerHour ?? 0);
+    const duration = Number(turf.slotDuration || 60);
+
+    slotList.forEach(s => {
+      const [start, end] = s.split(" - ");
+      const curMins = parseTimeToMinutes(start);
+      const endMins = parseTimeToMinutes(end);
+      const slotDurationMins = endMins - curMins;
+
+      // 1. Check for slot-specific pricing
+      const customSlot = turf.slotPricings?.find(sp => {
+        const spStart = parseTimeToMinutes(sp.startTime);
+        const spEnd = parseTimeToMinutes(sp.endTime);
+        return curMins < spEnd && endMins > spStart;
+      });
+
+      if (customSlot) {
+        calculatedPrice += (baseHourlyRate * (slotDurationMins / 60)) + Number(customSlot.price || 0);
+      } else {
+        calculatedPrice += (baseHourlyRate * (slotDurationMins / 60));
+      }
+    });
+
+    // Final price multiplied by number of courts
+    const finalPrice = calculatedPrice * (courts.length || 1);
+
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const finalUserId = (isAdmin && userId) ? userId : req.user.id;
     const finalIsOffline = !!(isAdmin && isOffline);
+    const finalPaymentStrategy = finalIsOffline ? 'full' : (paymentStrategy || 'full');
 
-    let totalAmount = Number(price) + (Number(convenienceFee) || 0);
+    let totalAmount = finalPrice + (Number(convenienceFee) || 0);
     
     // Deduct coins from total amount if used
     if (usedCoins && usedCoins > 0) {
@@ -134,11 +170,9 @@ export const createBooking = async (req, res) => {
     }
 
     let paidAmount = 0;
-    if (finalIsOffline) {
-      paidAmount = totalAmount; // Offline bookings are usually fully paid
-    } else if (paymentStrategy === 'full') {
+    if (finalPaymentStrategy === 'full') {
       paidAmount = totalAmount;
-    } else if (paymentStrategy === 'partial') {
+    } else if (finalPaymentStrategy === 'partial') {
       paidAmount = totalAmount * 0.25;
     }
     const balanceAmount = totalAmount - paidAmount;
@@ -153,7 +187,7 @@ export const createBooking = async (req, res) => {
       startTime: minStart,
       endTime: maxEnd,
       slots: slotList,
-      price: Number(price),
+      price: finalPrice,
       courts,
       bookingId,
       totalAmount,
@@ -161,7 +195,8 @@ export const createBooking = async (req, res) => {
       balanceAmount,
       usedCoins: Number(usedCoins) || 0,
       convenienceFee: Number(convenienceFee) || 0,
-      paymentStrategy: finalIsOffline ? 'full' : (paymentStrategy || 'full'),
+      paymentStrategy: finalPaymentStrategy,
+      paymentMethod: paymentMethod || (finalIsOffline ? 'offline' : 'online'),
       splitWithSquad: splitWithSquad || false,
       numberOfPlayers: Number(numberOfPlayers) || 1,
       paymentStatus: finalIsOffline ? 'paid' : 'pending',
