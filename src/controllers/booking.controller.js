@@ -15,6 +15,11 @@ const getTodayParts = () => {
   };
 };
 
+const parseTimeToMinutes = (time) => {
+  const [h, m] = (time || "00:00").split(":").map((v) => Number(v));
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+};
+
 const completedBookingQuery = (today, currentTime) => ({
   $or: [
     { status: "completed" },
@@ -235,7 +240,7 @@ export const getBookingById = async (req, res) => {
   try {
     const ids = req.params.id.split(',');
     const bookings = await Booking.find({ _id: { $in: ids } })
-      .populate("turf", "name location images pricePerHour")
+      .populate("turf")
       .populate("user", "name email phone");
 
     if (!bookings || bookings.length === 0) {
@@ -748,3 +753,4 @@ export const deleteBooking = async (req, res) => {
     res.status(500).json({ error: "Server Error while deleting booking" });
   }
 };
+  

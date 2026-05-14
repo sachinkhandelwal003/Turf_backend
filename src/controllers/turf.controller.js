@@ -1,6 +1,15 @@
 import Turf from "../models/turf.model.js";
 import Booking from "../models/booking.model.js";
 
+const parseTimeToMinutes = (time) => {
+  const [h, m] = (time || "00:00").split(":").map((v) => Number(v));
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+};
+
+const formatMinutes = (mins) =>
+  String(Math.floor(mins / 60)).padStart(2, "0") +
+  ":" +
+  String(mins % 60).padStart(2, "0");
 
 // ==============================
 // CREATE TURF
@@ -342,52 +351,16 @@ export const getTurfAvailability = async (
     // ==============================
     // GENERATE TIME SLOTS
     // ==============================
-    const slotDuration =
-      turf.slotDuration || 60;
-
+    const slotDuration = turf.slotDuration || 60;
     const slots = [];
 
-    let current =
-      parseInt(
-        operatingDay.open.split(":")[0]
-      ) *
-        60 +
-      parseInt(
-        operatingDay.open.split(":")[1]
-      );
-
-    const closing =
-      parseInt(
-        operatingDay.close.split(":")[0]
-      ) *
-        60 +
-      parseInt(
-        operatingDay.close.split(":")[1]
-      );
+    let current = parseTimeToMinutes(operatingDay.open);
+    const closing = parseTimeToMinutes(operatingDay.close);
 
     while (current + slotDuration <= closing) {
-      const startHour = String(
-        Math.floor(current / 60)
-      ).padStart(2, "0");
-
-      const startMin = String(
-        current % 60
-      ).padStart(2, "0");
-
-      const endMinutes =
-        current + slotDuration;
-
-      const endHour = String(
-        Math.floor(endMinutes / 60)
-      ).padStart(2, "0");
-
-      const endMin = String(
-        endMinutes % 60
-      ).padStart(2, "0");
-
       slots.push({
-        startTime: `${startHour}:${startMin}`,
-        endTime: `${endHour}:${endMin}`,
+        startTime: formatMinutes(current),
+        endTime: formatMinutes(current + slotDuration),
       });
 
       current += slotDuration;
