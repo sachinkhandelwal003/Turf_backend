@@ -3,6 +3,8 @@ import Role from "../models/auth/role.model.js";
 import Permission from "../models/auth/permission.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { sendEmail } from "../utils/email.js";
 
 // REGISTER
 export const register = async (req, res) => {
@@ -297,6 +299,129 @@ export const updatePassword = async (req, res) => {
   } catch (err) {
     console.error("Update Password Error:", err);
     res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// FORGOT PASSWORD
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, msg: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    console.log("Forgot Password Request for:", email);
+    if (!user) {
+      console.log("User not found in database for email:", email);
+      return res.status(404).json({ 
+        success: false, 
+        msg: "No account found with this email address." 
+      });
+    }
+
+    console.log("User found:", user.name, "(ID:", user._id, ")");
+
+    // 1. Generate random reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // 2. Hash token and save to database
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    // 3. Set expiry (e.g., 1 hour)
+    user.resetPasswordExpires = Date.now() + 3600000;
+
+    await user.save();
+
+    // 4. Create reset URL
+    // Use frontend URL from env or fallback to localhost
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3005";
+    const resetUrl = `${frontendUrl}/ResetPassword?token=${resetToken}`;
+
+    const message = `You are receiving this email because you (or someone else) have requested the reset of a password. Please click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Password Reset Token",
+        message,
+      });
+
+      res.status(200).json({ success: true, msg: "Email sent" });
+    } catch (err) {
+      console.error("Email send error details:", err);
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+
+      let errorMsg = "Email could not be sent.";
+      
+      if (err.message.includes('Invalid login')) {
+        errorMsg = "Invalid Email App Password. Please check your .env file.";
+      } else if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+        errorMsg = "Connection to email server failed. Check your internet.";
+      } else if (err.message.includes('not configured')) {
+        errorMsg = "Email service not configured.";
+      } else {
+        // Show the actual error message for debugging
+        errorMsg = `Email Error: ${err.message}`;
+      }
+
+      return res.status(500).json({ 
+        success: false, 
+        msg: errorMsg
+      });
+    }
+  } catch (err) {
+    console.error("Forgot Password Error:", err);
+    res.status(500).json({ success: false, error: "Server Error" });
+  }
+};
+
+// RESET PASSWORD
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ success: false, msg: "Token and password are required" });
+    }
+
+    // 1. Hash the token from URL to compare with stored hash
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    // 2. Find user by token and ensure token is not expired
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, msg: "Invalid or expired token" });
+    }
+
+    // 3. Set new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    
+    // 4. Clear reset token fields
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+
+    await user.save();
+
+    res.status(200).json({ success: true, msg: "Password reset successful" });
+  } catch (err) {
+    console.error("Reset Password Error:", err);
+    res.status(500).json({ success: false, error: "Server Error" });
   }
 };
 

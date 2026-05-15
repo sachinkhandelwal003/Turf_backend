@@ -18,7 +18,9 @@ import {
   createUser,
   deleteUser,
   impersonate,
-  updatePassword
+  updatePassword,
+  forgotPassword,
+  resetPassword
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkAnyPermission, checkPermission, checkRole } from "../middleware/rbac.middleware.js";
@@ -28,6 +30,8 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.post("/impersonate", authMiddleware, checkRole(["superadmin"]), impersonate);
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, upload.fields([
