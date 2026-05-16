@@ -597,11 +597,15 @@ export const checkAvailability = async (req, res) => {
       return res.status(400).json({ error: "Turf ID and date are required" });
     }
 
+    console.log(`Checking availability for Turf: ${turfId} on Date: ${date}`);
+
     const bookings = await Booking.find({
       turf: turfId,
-      date,
+      date: date,
       status: { $ne: "cancelled" }
-    }).select("startTime endTime courts");
+    }).select("startTime endTime courts slots status");
+
+    console.log(`Found ${bookings.length} active bookings`);
 
     res.json({
       success: true,
