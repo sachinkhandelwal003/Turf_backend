@@ -26,6 +26,9 @@ export const updateSettings = async (req, res) => {
     if (typeof updateData.heroBanner === 'string') {
       updateData.heroBanner = JSON.parse(updateData.heroBanner);
     }
+    if (typeof updateData.razorpay === 'string') {
+      updateData.razorpay = JSON.parse(updateData.razorpay);
+    }
 
     // Handle File Uploads
     if (req.files) {
