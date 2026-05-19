@@ -3,6 +3,7 @@ import {
   createVenueLead,
   getVenueLeads,
   updateVenueLeadStatus,
+  deleteVenueLead,
 } from "../controllers/venueLead.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
@@ -16,5 +17,6 @@ router.post("/", upload.fields([{ name: "photos", maxCount: 5 }]), createVenueLe
 // Protected routes for admin/superadmin to manage leads
 router.get("/", authMiddleware, checkRole(["admin", "superadmin"]), getVenueLeads);
 router.patch("/:id/status", authMiddleware, checkRole(["admin", "superadmin"]), updateVenueLeadStatus);
+router.delete("/:id", authMiddleware, checkRole(["admin", "superadmin"]), deleteVenueLead);
 
 export default router;

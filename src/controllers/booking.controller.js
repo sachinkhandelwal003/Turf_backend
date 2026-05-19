@@ -560,7 +560,7 @@ export const getAllBookings = async (req, res) => {
       });
     }
 
-    const [bookings, total] = await Promise.all([
+    const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
         .populate("turf", "name location images owner")
         .populate("user", "name email phone profilePhoto")
@@ -572,12 +572,17 @@ export const getAllBookings = async (req, res) => {
 
     // Filter out bookings where turf was deleted (orphans)
     const validBookings = bookings.filter(b => b.turf !== null);
-
+    
+    // To keep the total count accurate based on valid (non-orphan) bookings, 
+    // we need to adjust the total if we're filtering orphans.
+    // However, for pagination to work correctly with large datasets, 
+    // it's better to just show valid ones.
+    
     res.json({
       success: true,
       bookings: validBookings,
-      total,
-      pages: Math.ceil(total / limit),
+      total: validBookings.length, // Showing only valid bookings count
+      pages: Math.ceil(validBookings.length / limit),
       currentPage: parseInt(page)
     });
   } catch (err) {
@@ -698,7 +703,7 @@ export const getAdminTurfBookings = async (req, res) => {
       });
     }
 
-    const [bookings, total] = await Promise.all([
+    const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
         .populate("turf", "name location images")
         .populate("user", "name email phone profilePhoto")
@@ -714,8 +719,8 @@ export const getAdminTurfBookings = async (req, res) => {
     res.json({
       success: true,
       bookings: validBookings,
-      total,
-      pages: Math.ceil(total / limit),
+      total: validBookings.length,
+      pages: Math.ceil(validBookings.length / limit),
       currentPage: parseInt(page),
       myTurfs: myTurfs
     });

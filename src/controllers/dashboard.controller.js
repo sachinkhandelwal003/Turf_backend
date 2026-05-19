@@ -195,9 +195,9 @@ export const getPublicStats = async (req, res) => {
       success: true,
       stats: {
         grounds: totalTurfs,
-        players: totalUsers + 50, // Add some mock padding if requested or keep real
-        cities: Math.max(totalCities, 1),
-        bookings: totalBookings + 100 // Add some mock padding
+        players: totalUsers,
+        cities: totalCities,
+        bookings: totalBookings
       }
     });
   } catch (err) {

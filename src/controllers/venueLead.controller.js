@@ -75,3 +75,18 @@ export const updateVenueLeadStatus = async (req, res) => {
     res.status(500).json({ success: false, error: "Server Error" });
   }
 };
+
+export const deleteVenueLead = async (req, res) => {
+  try {
+    const lead = await VenueLead.findByIdAndDelete(req.params.id);
+
+    if (!lead) {
+      return res.status(404).json({ success: false, msg: "Lead not found" });
+    }
+
+    res.json({ success: true, msg: "Lead deleted successfully" });
+  } catch (err) {
+    console.error("Delete Venue Lead Error:", err);
+    res.status(500).json({ success: false, error: "Server Error" });
+  }
+};
