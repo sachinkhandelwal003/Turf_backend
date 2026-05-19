@@ -360,11 +360,58 @@ export const forgotPassword = async (req, res) => {
 
     const message = `You are receiving this email because you (or someone else) have requested the reset of a password. Please click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`;
 
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #1abc60; }
+        .logo { font-size: 28px; font-weight: bold; color: #1abc60; text-decoration: none; }
+        .content { padding: 30px 0; line-height: 1.6; }
+        .button-container { text-align: center; margin: 30px 0; }
+        .button { background-color: #1abc60; color: white !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(26, 188, 96, 0.2); }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #eee; margin-top: 20px; }
+        .warning { background-color: #fff8f0; border-left: 4px solid #ff9800; padding: 15px; margin: 20px 0; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <a href="${frontendUrl}" class="logo">GameOn India</a>
+        </div>
+        <div class="content">
+          <h2>Password Reset Request</h2>
+          <p>Hi ${user.name || 'User'},</p>
+          <p>You are receiving this email because you (or someone else) have requested to reset the password for your GameOn India account.</p>
+          <p>Click the button below to set a new password. This link is valid for <strong>1 hour</strong>.</p>
+          
+          <div class="button-container">
+            <a href="${resetUrl}" class="button">Reset Password</a>
+          </div>
+
+          <div class="warning">
+            If you did not request this, please ignore this email and your password will remain unchanged.
+          </div>
+
+          <p>If the button above doesn't work, copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; font-size: 13px; color: #1abc60;">${resetUrl}</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} GameOn India. All rights reserved.</p>
+          <p>Manage your turf bookings effortlessly.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
     try {
       await sendEmail({
         email: user.email,
-        subject: "Password Reset Token",
+        subject: "GameOn India - Password Reset Request",
         message,
+        html
       });
 
       res.status(200).json({ success: true, msg: "Email sent" });

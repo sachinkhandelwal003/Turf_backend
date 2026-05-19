@@ -21,11 +21,11 @@ export const sendEmail = async (options) => {
 
   // Define email options
   const mailOptions = {
-    from: `"Turf Booking" <${process.env.EMAIL_USER}>`,
+    from: `"GameOn India" <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
-    // html: options.html
+    html: options.html
   };
 
   // Actually send the email
