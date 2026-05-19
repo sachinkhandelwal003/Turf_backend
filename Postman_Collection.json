@@ -2,347 +2,411 @@
   "info": {
     "_postman_id": "turf-booking-api-2026",
     "name": "Turf Booking API - Complete Collection",
-    "description": "Complete Turf Booking System API with all endpoints and test data",
+    "description": "Exhaustive Turf Booking System API with 80+ endpoints",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Authentication",
-      "description": "User authentication endpoints",
+      "name": "1. Authentication & RBAC",
       "item": [
         {
-          "name": "Register",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"name\": \"Raj Kumar\", \"email\": \"raj.kumar@example.com\", \"phone\": \"9876543210\", \"password\": \"SecurePass@123\", \"confirmPassword\": \"SecurePass@123\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
-            }
-          }
-        },
-        {
-          "name": "Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\": \"raj.kumar@example.com\", \"password\": \"SecurePass@123\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
-            }
-          }
-        },
-        {
-          "name": "Get Profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/auth/profile",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "profile"]
-            }
-          }
-        },
-        {
-          "name": "Update Profile",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "name",
-                  "value": "Raj Kumar Updated",
-                  "type": "text"
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"name\": \"Raj Kumar\", \"email\": \"raj.kumar@example.com\", \"phone\": \"9876543210\", \"password\": \"SecurePass@123\", \"confirmPassword\": \"SecurePass@123\"}"
                 },
-                {
-                  "key": "phone",
-                  "value": "9876543210",
-                  "type": "text"
-                }
-              ]
+                "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+              }
             },
-            "url": {
-              "raw": "{{base_url}}/auth/profile",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "profile"]
+            {
+              "name": "Login",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"raj.kumar@example.com\", \"password\": \"SecurePass@123\"}"
+                },
+                "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+              }
+            },
+            {
+              "name": "Forgot Password",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\"email\": \"raj.kumar@example.com\"}" },
+                "url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth", "forgot-password"] }
+              }
+            },
+            {
+              "name": "Reset Password",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\"token\": \"reset_token_here\", \"password\": \"NewSecure@456\", \"confirmPassword\": \"NewSecure@456\"}" },
+                "url": { "raw": "{{base_url}}/auth/reset-password", "host": ["{{base_url}}"], "path": ["auth", "reset-password"] }
+              }
+            },
+            {
+              "name": "Impersonate (Superadmin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"userId\": \"{{user_id}}\"}" },
+                "url": { "raw": "{{base_url}}/auth/impersonate", "host": ["{{base_url}}"], "path": ["auth", "impersonate"] }
+              }
+            },
+            {
+              "name": "Get Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/profile", "host": ["{{base_url}}"], "path": ["auth", "profile"] }
+              }
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name", "value": "Raj Updated", "type": "text" },
+                    { "key": "profilePhoto", "type": "file", "src": [] }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/auth/profile", "host": ["{{base_url}}"], "path": ["auth", "profile"] }
+              }
+            },
+            {
+              "name": "Update Password",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"oldPassword\": \"SecurePass@123\", \"newPassword\": \"NewSecure@456\", \"confirmPassword\": \"NewSecure@456\"}" },
+                "url": { "raw": "{{base_url}}/auth/update-password", "host": ["{{base_url}}"], "path": ["auth", "update-password"] }
+              }
             }
-          }
+          ]
         },
         {
-          "name": "Update Password",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+          "name": "Users",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/users", "host": ["{{base_url}}"], "path": ["auth", "users"] }
               }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"oldPassword\": \"SecurePass@123\", \"newPassword\": \"NewSecure@456\", \"confirmPassword\": \"NewSecure@456\"}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/update-password",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "update-password"]
+            {
+              "name": "Create User",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name", "value": "Admin User", "type": "text" },
+                    { "key": "email", "value": "admin@example.com", "type": "text" },
+                    { "key": "role", "value": "admin", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/auth/users", "host": ["{{base_url}}"], "path": ["auth", "users"] }
+              }
+            },
+            {
+              "name": "Batch Update Users",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"userIds\": [\"{{user_id}}\"], \"updates\": {\"isActive\": true}}" },
+                "url": { "raw": "{{base_url}}/auth/users/batch", "host": ["{{base_url}}"], "path": ["auth", "users", "batch"] }
+              }
+            },
+            {
+              "name": "Update User RBAC",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "role", "value": "superadmin", "type": "text" }]
+                },
+                "url": { "raw": "{{base_url}}/auth/users/{{user_id}}/rbac", "host": ["{{base_url}}"], "path": ["auth", "users", "{{user_id}}", "rbac"] }
+              }
+            },
+            {
+              "name": "Delete User",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["auth", "users", "{{user_id}}"] }
+              }
             }
-          }
+          ]
+        },
+        {
+          "name": "Roles",
+          "item": [
+            {
+              "name": "Get All Roles",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/roles", "host": ["{{base_url}}"], "path": ["auth", "roles"] }
+              }
+            },
+            {
+              "name": "Create Role",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"name\": \"manager\", \"permissions\": [\"manage_bookings\"]}" },
+                "url": { "raw": "{{base_url}}/auth/roles", "host": ["{{base_url}}"], "path": ["auth", "roles"] }
+              }
+            },
+            {
+              "name": "Update Role",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"name\": \"manager_updated\"}" },
+                "url": { "raw": "{{base_url}}/auth/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["auth", "roles", "{{role_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Role",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/roles/{{role_id}}", "host": ["{{base_url}}"], "path": ["auth", "roles", "{{role_id}}"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Permissions",
+          "item": [
+            {
+              "name": "Get All Permissions",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/permissions", "host": ["{{base_url}}"], "path": ["auth", "permissions"] }
+              }
+            },
+            {
+              "name": "Create Permission",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"name\": \"test_permission\"}" },
+                "url": { "raw": "{{base_url}}/auth/permissions", "host": ["{{base_url}}"], "path": ["auth", "permissions"] }
+              }
+            },
+            {
+              "name": "Update Permission",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"name\": \"test_permission_updated\"}" },
+                "url": { "raw": "{{base_url}}/auth/permissions/{{permission_id}}", "host": ["{{base_url}}"], "path": ["auth", "permissions", "{{permission_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Permission",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/auth/permissions/{{permission_id}}", "host": ["{{base_url}}"], "path": ["auth", "permissions", "{{permission_id}}"] }
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Turfs",
-      "description": "Turf/Venue management endpoints",
+      "name": "2. Venues / Turfs",
       "item": [
         {
-          "name": "Get All Turfs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/turfs?page=1&limit=10&city=Mumbai",
-              "host": ["{{base_url}}"],
-              "path": ["turfs"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                },
-                {
-                  "key": "city",
-                  "value": "Mumbai"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Turf By ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/turfs/{{turf_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["turfs", "{{turf_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get Turf Availability",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/turfs/{{turf_id}}/availability?date=2026-05-20",
-              "host": ["{{base_url}}"],
-              "path": ["turfs", "{{turf_id}}", "availability"],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-05-20"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Turf",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+          "name": "Public",
+          "item": [
+            {
+              "name": "Get All Turfs",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/turfs?page=1&limit=10", "host": ["{{base_url}}"], "path": ["turfs"] }
               }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "name",
-                  "value": "Elite Sports Arena",
-                  "type": "text"
-                },
-                {
-                  "key": "pricePerHour",
-                  "value": "2000",
-                  "type": "text"
-                },
-                {
-                  "key": "peakHourSurcharge",
-                  "value": "500",
-                  "type": "text"
-                },
-                {
-                  "key": "location",
-                  "value": "{\"address\":\"Connaught Place, Delhi\",\"city\":\"Delhi\",\"landmark\":\"Near CP\",\"coordinates\":{\"lat\":28.6329,\"lng\":77.1197}}",
-                  "type": "text"
-                },
-                {
-                  "key": "sports",
-                  "value": "[\"Cricket\",\"Football\",\"Badminton\"]",
-                  "type": "text"
-                },
-                {
-                  "key": "amenities",
-                  "value": "[\"Floodlights\",\"Parking\",\"Canteen\",\"WiFi\"]",
-                  "type": "text"
-                }
-              ]
             },
-            "url": {
-              "raw": "{{base_url}}/turfs",
-              "host": ["{{base_url}}"],
-              "path": ["turfs"]
+            {
+              "name": "Get Turf By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}"] }
+              }
+            },
+            {
+              "name": "Get Turf Availability",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}/availability?date=2026-05-20", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}", "availability"] }
+              }
             }
-          }
+          ]
+        },
+        {
+          "name": "Admin",
+          "item": [
+            {
+              "name": "Get My Turfs",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/turfs/my/all", "host": ["{{base_url}}"], "path": ["turfs", "my", "all"] }
+              }
+            },
+            {
+              "name": "Create Turf",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name", "value": "Elite Arena", "type": "text" },
+                    { "key": "pricePerHour", "value": "1500", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/turfs", "host": ["{{base_url}}"], "path": ["turfs"] }
+              }
+            },
+            {
+              "name": "Update Turf",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "name", "value": "Elite Arena Updated", "type": "text" }]
+                },
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}"] }
+              }
+            },
+            {
+              "name": "Update Turf Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"status\": \"active\"}" },
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}/status", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}", "status"] }
+              }
+            },
+            {
+              "name": "Delete Turf",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}"] }
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Bookings",
-      "description": "Booking management endpoints",
+      "name": "3. Bookings",
       "item": [
+        {
+          "name": "Check Availability (Public)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/bookings/check-availability?turfId={{turf_id}}&date=2026-05-20&startTime=18:00&endTime=19:00", "host": ["{{base_url}}"], "path": ["bookings", "check-availability"] }
+          }
+        },
         {
           "name": "Create Booking",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"turfId\": \"{{turf_id}}\", \"sport\": \"Cricket\", \"date\": \"2026-05-20\", \"startTime\": \"18:00\", \"endTime\": \"19:00\", \"courts\": [\"Court A\"], \"numberOfPlayers\": 11}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bookings",
-              "host": ["{{base_url}}"],
-              "path": ["bookings"]
-            }
+            "body": { "mode": "raw", "raw": "{\"turfId\": \"{{turf_id}}\", \"sport\": \"Cricket\", \"date\": \"2026-05-20\", \"startTime\": \"18:00\", \"endTime\": \"19:00\", \"courts\": [\"Court A\"]}" },
+            "url": { "raw": "{{base_url}}/bookings", "host": ["{{base_url}}"], "path": ["bookings"] }
           }
         },
         {
           "name": "Get My Bookings",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bookings/my?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["bookings", "my"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/my", "host": ["{{base_url}}"], "path": ["bookings", "my"] }
           }
         },
         {
-          "name": "Check Availability",
+          "name": "Get All Bookings (Superadmin)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/bookings/check-availability?turfId={{turf_id}}&date=2026-05-20&startTime=18:00&endTime=19:00",
-              "host": ["{{base_url}}"],
-              "path": ["bookings", "check-availability"],
-              "query": [
-                {
-                  "key": "turfId",
-                  "value": "{{turf_id}}"
-                },
-                {
-                  "key": "date",
-                  "value": "2026-05-20"
-                },
-                {
-                  "key": "startTime",
-                  "value": "18:00"
-                },
-                {
-                  "key": "endTime",
-                  "value": "19:00"
-                }
-              ]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/all", "host": ["{{base_url}}"], "path": ["bookings", "all"] }
+          }
+        },
+        {
+          "name": "Get Admin My Turfs Bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/admin/my-turfs", "host": ["{{base_url}}"], "path": ["bookings", "admin", "my-turfs"] }
+          }
+        },
+        {
+          "name": "Get Turf Bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/turf/{{turf_id}}", "host": ["{{base_url}}"], "path": ["bookings", "turf", "{{turf_id}}"] }
           }
         },
         {
           "name": "Get Booking By ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bookings/{{booking_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["bookings", "{{booking_id}}"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/{{booking_id}}", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}"] }
           }
         },
         {
@@ -350,24 +414,11 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"amount\": 1500, \"paymentMethod\": \"UPI\", \"transactionId\": \"TXN123456789\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bookings/{{booking_id}}/pay",
-              "host": ["{{base_url}}"],
-              "path": ["bookings", "{{booking_id}}", "pay"]
-            }
+            "body": { "mode": "raw", "raw": "{\"amount\": 1500, \"paymentMethod\": \"UPI\", \"transactionId\": \"TXN-123\"}" },
+            "url": { "raw": "{{base_url}}/bookings/{{booking_id}}/pay", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}", "pay"] }
           }
         },
         {
@@ -375,619 +426,465 @@
           "request": {
             "method": "PATCH",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"status\": \"confirmed\", \"notes\": \"Booking confirmed\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bookings/{{booking_id}}/status",
-              "host": ["{{base_url}}"],
-              "path": ["bookings", "{{booking_id}}", "status"]
-            }
+            "body": { "mode": "raw", "raw": "{\"status\": \"confirmed\"}" },
+            "url": { "raw": "{{base_url}}/bookings/{{booking_id}}/status", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}", "status"] }
+          }
+        },
+        {
+          "name": "Delete Booking",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/bookings/{{booking_id}}", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}"] }
           }
         }
       ]
     },
     {
-      "name": "Tournaments",
-      "description": "Tournament management endpoints",
+      "name": "4. Tournaments",
       "item": [
         {
-          "name": "Get All Tournaments",
+          "name": "Public",
+          "item": [
+            {
+              "name": "Get All Tournaments",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tournaments", "host": ["{{base_url}}"], "path": ["tournaments"] }
+              }
+            },
+            {
+              "name": "Get Tournament By ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "User",
+          "item": [
+            {
+              "name": "Register for Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\"teamName\": \"Elite Team\"}" },
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}/register", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}", "register"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin",
+          "item": [
+            {
+              "name": "Get All Registrations",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/tournaments/registrations/all", "host": ["{{base_url}}"], "path": ["tournaments", "registrations", "all"] }
+              }
+            },
+            {
+              "name": "Delete Registration",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}/registrations/{{registration_id}}", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}", "registrations", "{{registration_id}}"] }
+              }
+            },
+            {
+              "name": "Get My Tournaments",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/tournaments/my/all", "host": ["{{base_url}}"], "path": ["tournaments", "my", "all"] }
+              }
+            },
+            {
+              "name": "Create Tournament",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name", "value": "Summer Cup", "type": "text" },
+                    { "key": "image", "type": "file", "src": [] }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/tournaments", "host": ["{{base_url}}"], "path": ["tournaments"] }
+              }
+            },
+            {
+              "name": "Update Tournament",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "name", "value": "Summer Cup Updated", "type": "text" }]
+                },
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}"] }
+              }
+            },
+            {
+              "name": "Approve Tournament (Superadmin)",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}/approve", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}", "approve"] }
+              }
+            },
+            {
+              "name": "Delete Tournament",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Settlements",
+      "item": [
+        {
+          "name": "Get All Settlements",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tournaments?page=1",
-              "host": ["{{base_url}}"],
-              "path": ["tournaments"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                }
-              ]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/settlements", "host": ["{{base_url}}"], "path": ["settlements"] }
           }
         },
         {
-          "name": "Get Tournament By ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tournaments/{{tournament_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tournaments", "{{tournament_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Create Tournament",
+          "name": "Create Settlement",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
+            "body": { "mode": "raw", "raw": "{\"venueId\": \"{{turf_id}}\", \"amount\": 5000}" },
+            "url": { "raw": "{{base_url}}/settlements", "host": ["{{base_url}}"], "path": ["settlements"] }
+          }
+        },
+        {
+          "name": "Update Settlement Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"status\": \"paid\"}" },
+            "url": { "raw": "{{base_url}}/settlements/{{settlement_id}}", "host": ["{{base_url}}"], "path": ["settlements", "{{settlement_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Venue Leads",
+      "item": [
+        {
+          "name": "Create Lead (Public)",
+          "request": {
+            "method": "POST",
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "name",
-                  "value": "Delhi Cricket Championship 2026",
-                  "type": "text"
-                },
-                {
-                  "key": "sport",
-                  "value": "Cricket",
-                  "type": "text"
-                },
-                {
-                  "key": "location",
-                  "value": "Delhi",
-                  "type": "text"
-                },
-                {
-                  "key": "startDate",
-                  "value": "2026-06-01",
-                  "type": "text"
-                },
-                {
-                  "key": "endDate",
-                  "value": "2026-06-15",
-                  "type": "text"
-                },
-                {
-                  "key": "registrationFee",
-                  "value": "5000",
-                  "type": "text"
-                }
+                { "key": "venueName", "value": "New Venue", "type": "text" },
+                { "key": "photos", "type": "file", "src": [] }
               ]
             },
-            "url": {
-              "raw": "{{base_url}}/tournaments",
-              "host": ["{{base_url}}"],
-              "path": ["tournaments"]
-            }
+            "url": { "raw": "{{base_url}}/venue-leads", "host": ["{{base_url}}"], "path": ["venue-leads"] }
           }
         },
         {
-          "name": "Register for Tournament",
+          "name": "Get All Leads (Admin)",
           "request": {
-            "method": "POST",
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/venue-leads", "host": ["{{base_url}}"], "path": ["venue-leads"] }
+          }
+        },
+        {
+          "name": "Update Lead Status",
+          "request": {
+            "method": "PATCH",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"teamName\": \"Elite Strikers\", \"teamSize\": 11, \"contactEmail\": \"team@example.com\", \"contactPhone\": \"9876543210\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tournaments/{{tournament_id}}/register",
-              "host": ["{{base_url}}"],
-              "path": ["tournaments", "{{tournament_id}}", "register"]
-            }
+            "body": { "mode": "raw", "raw": "{\"status\": \"approved\"}" },
+            "url": { "raw": "{{base_url}}/venue-leads/{{lead_id}}/status", "host": ["{{base_url}}"], "path": ["venue-leads", "{{lead_id}}", "status"] }
+          }
+        },
+        {
+          "name": "Delete Lead",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/venue-leads/{{lead_id}}", "host": ["{{base_url}}"], "path": ["venue-leads", "{{lead_id}}"] }
           }
         }
       ]
     },
     {
-      "name": "Reviews",
-      "description": "Review management endpoints",
+      "name": "7. Chat",
       "item": [
         {
-          "name": "Create Review",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"turfId\": \"{{turf_id}}\", \"rating\": 5, \"comment\": \"Excellent ground with great maintenance!\", \"categories\": [\"quality\", \"cleanliness\", \"service\"]}"
-            },
-            "url": {
-              "raw": "{{base_url}}/reviews",
-              "host": ["{{base_url}}"],
-              "path": ["reviews"]
-            }
-          }
-        },
-        {
-          "name": "Get Turf Reviews",
+          "name": "Get All Admins",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/reviews/turf/{{turf_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["reviews", "turf", "{{turf_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get All Reviews",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/reviews/all",
-              "host": ["{{base_url}}"],
-              "path": ["reviews", "all"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Chat",
-      "description": "Chat and messaging endpoints",
-      "item": [
-        {
-          "name": "Create Conversation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"participantId\": \"{{user_id}}\", \"type\": \"direct\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/chat/conversation",
-              "host": ["{{base_url}}"],
-              "path": ["chat", "conversation"]
-            }
-          }
-        },
-        {
-          "name": "Send Message",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "conversationId",
-                  "value": "{{conversation_id}}",
-                  "type": "text"
-                },
-                {
-                  "key": "content",
-                  "value": "Hi, I have a question about the booking",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{base_url}}/chat/message",
-              "host": ["{{base_url}}"],
-              "path": ["chat", "message"]
-            }
-          }
-        },
-        {
-          "name": "Get Messages",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/chat/messages/{{conversation_id}}?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["chat", "messages", "{{conversation_id}}"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get User Conversations",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/chat/conversations/{{user_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["chat", "conversations", "{{user_id}}"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/chat/admins", "host": ["{{base_url}}"], "path": ["chat", "admins"] }
           }
         },
         {
           "name": "Get Superadmin",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/chat/superadmin",
-              "host": ["{{base_url}}"],
-              "path": ["chat", "superadmin"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Masters",
-      "description": "Master data endpoints",
-      "item": [
-        {
-          "name": "Get Masters",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/masters",
-              "host": ["{{base_url}}"],
-              "path": ["masters"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/chat/superadmin", "host": ["{{base_url}}"], "path": ["chat", "superadmin"] }
           }
         },
         {
-          "name": "Create Master",
+          "name": "Create Conversation",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
+            "body": { "mode": "raw", "raw": "{\"participantId\": \"{{user_id}}\"}" },
+            "url": { "raw": "{{base_url}}/chat/conversation", "host": ["{{base_url}}"], "path": ["chat", "conversation"] }
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "category",
-                  "value": "sports",
-                  "type": "text"
-                },
-                {
-                  "key": "name",
-                  "value": "Volleyball",
-                  "type": "text"
-                }
+                { "key": "conversationId", "value": "{{conversation_id}}", "type": "text" },
+                { "key": "content", "value": "Hi!", "type": "text" }
               ]
             },
-            "url": {
-              "raw": "{{base_url}}/masters",
-              "host": ["{{base_url}}"],
-              "path": ["masters"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Dashboard",
-      "description": "Dashboard and analytics endpoints",
-      "item": [
-        {
-          "name": "Get Admin Stats",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/dashboard/stats",
-              "host": ["{{base_url}}"],
-              "path": ["dashboard", "stats"]
-            }
+            "url": { "raw": "{{base_url}}/chat/message", "host": ["{{base_url}}"], "path": ["chat", "message"] }
           }
         },
         {
-          "name": "Get Public Stats",
+          "name": "Delete Message",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/dashboard/public-stats",
-              "host": ["{{base_url}}"],
-              "path": ["dashboard", "public-stats"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Billing",
-      "description": "Billing endpoints",
-      "item": [
-        {
-          "name": "Get Billing Stats",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/billing/stats",
-              "host": ["{{base_url}}"],
-              "path": ["billing", "stats"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Settings",
-      "description": "System settings endpoints",
-      "item": [
-        {
-          "name": "Get Settings",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/settings",
-              "host": ["{{base_url}}"],
-              "path": ["settings"]
-            }
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/chat/message/{{message_id}}", "host": ["{{base_url}}"], "path": ["chat", "message", "{{message_id}}"] }
           }
         },
         {
-          "name": "Update Settings",
+          "name": "React to Message",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "appName",
-                  "value": "Turf Booking Pro",
-                  "type": "text"
-                },
-                {
-                  "key": "contactEmail",
-                  "value": "support@turfbooking.com",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{base_url}}/settings",
-              "host": ["{{base_url}}"],
-              "path": ["settings"]
-            }
+            "body": { "mode": "raw", "raw": "{\"emoji\": \"👍\"}" },
+            "url": { "raw": "{{base_url}}/chat/message/{{message_id}}/react", "host": ["{{base_url}}"], "path": ["chat", "message", "{{message_id}}", "react"] }
+          }
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/chat/messages/{{conversation_id}}", "host": ["{{base_url}}"], "path": ["chat", "messages", "{{conversation_id}}"] }
+          }
+        },
+        {
+          "name": "Get User Conversations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/chat/conversations/{{user_id}}", "host": ["{{base_url}}"], "path": ["chat", "conversations", "{{user_id}}"] }
           }
         }
       ]
     },
     {
-      "name": "Venue Leads",
-      "description": "Venue lead management endpoints",
+      "name": "8. Reviews",
       "item": [
         {
-          "name": "Create Venue Lead",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "venueName",
-                  "value": "Central Sports Ground",
-                  "type": "text"
-                },
-                {
-                  "key": "ownerName",
-                  "value": "Akshay Patel",
-                  "type": "text"
-                },
-                {
-                  "key": "email",
-                  "value": "akshay@centralsports.com",
-                  "type": "text"
-                },
-                {
-                  "key": "phone",
-                  "value": "9876543210",
-                  "type": "text"
-                },
-                {
-                  "key": "city",
-                  "value": "Pune",
-                  "type": "text"
-                },
-                {
-                  "key": "address",
-                  "value": "Baner Road, Pune",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{base_url}}/venue-leads",
-              "host": ["{{base_url}}"],
-              "path": ["venue-leads"]
-            }
-          }
-        },
-        {
-          "name": "Get Venue Leads",
+          "name": "Get Turf Reviews (Public)",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/venue-leads",
-              "host": ["{{base_url}}"],
-              "path": ["venue-leads"]
-            }
+            "url": { "raw": "{{base_url}}/reviews/turf/{{turf_id}}", "host": ["{{base_url}}"], "path": ["reviews", "turf", "{{turf_id}}"] }
           }
         },
         {
-          "name": "Update Venue Lead Status",
+          "name": "Create Review",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"status\": \"approved\", \"notes\": \"Venue meets all requirements\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/venue-leads/{{venue_lead_id}}/status",
-              "host": ["{{base_url}}"],
-              "path": ["venue-leads", "{{venue_lead_id}}", "status"]
-            }
+            "body": { "mode": "raw", "raw": "{\"turfId\": \"{{turf_id}}\", \"rating\": 5, \"comment\": \"Great!\"}" },
+            "url": { "raw": "{{base_url}}/reviews", "host": ["{{base_url}}"], "path": ["reviews"] }
           }
+        },
+        {
+          "name": "Get All Reviews (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/reviews/all", "host": ["{{base_url}}"], "path": ["reviews", "all"] }
+              }
+            },
+            {
+              "name": "Approve Review",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/reviews/{{review_id}}/approve", "host": ["{{base_url}}"], "path": ["reviews", "{{review_id}}", "approve"] }
+              }
+            },
+            {
+              "name": "Delete Review",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/reviews/{{review_id}}", "host": ["{{base_url}}"], "path": ["reviews", "{{review_id}}"] }
+              }
+            }
+      ]
+    },
+    {
+      "name": "9. Dashboard & Stats",
+      "item": [
+        {
+          "name": "Admin Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/dashboard/stats", "host": ["{{base_url}}"], "path": ["dashboard", "stats"] }
+          }
+        },
+        {
+          "name": "Public Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/dashboard/public-stats", "host": ["{{base_url}}"], "path": ["dashboard", "public-stats"] }
+          }
+        },
+        {
+          "name": "Billing Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/billing/stats", "host": ["{{base_url}}"], "path": ["billing", "stats"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Masters & Settings",
+      "item": [
+        {
+          "name": "Masters",
+          "item": [
+            {
+              "name": "Get Masters",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/masters", "host": ["{{base_url}}"], "path": ["masters"] }
+              }
+            },
+            {
+              "name": "Create Master",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "name", "value": "Football", "type": "text" }]
+                },
+                "url": { "raw": "{{base_url}}/masters", "host": ["{{base_url}}"], "path": ["masters"] }
+              }
+            },
+            {
+              "name": "Update Master",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/masters/{{master_id}}", "host": ["{{base_url}}"], "path": ["masters", "{{master_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Master",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/masters/{{master_id}}", "host": ["{{base_url}}"], "path": ["masters", "{{master_id}}"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Settings",
+          "item": [
+            {
+              "name": "Get Settings",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] }
+              }
+            },
+            {
+              "name": "Update Settings",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "appName", "value": "Turf Booking", "type": "text" }]
+                },
+                "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] }
+              }
+            }
+          ]
         }
       ]
     }
   ],
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:5000/api",
-      "type": "string"
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "turf_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "booking_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "tournament_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "user_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "conversation_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "venue_lead_id",
-      "value": "",
-      "type": "string"
-    }
+    { "key": "base_url", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "turf_id", "value": "", "type": "string" },
+    { "key": "booking_id", "value": "", "type": "string" },
+    { "key": "tournament_id", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "conversation_id", "value": "", "type": "string" },
+    { "key": "message_id", "value": "", "type": "string" },
+    { "key": "settlement_id", "value": "", "type": "string" },
+    { "key": "lead_id", "value": "", "type": "string" },
+    { "key": "role_id", "value": "", "type": "string" },
+    { "key": "permission_id", "value": "", "type": "string" },
+    { "key": "review_id", "value": "", "type": "string" },
+    { "key": "master_id", "value": "", "type": "string" },
+    { "key": "registration_id", "value": "", "type": "string" }
   ]
 }
