@@ -16,19 +16,36 @@ import settlementRoutes from "./routes/settlement.routes.js";
 const app = express();
 
 // --- Middleware ---
+const allowedOrigins = [
+  "http://localhost:3000", 
+  "http://localhost:3001", 
+  "http://localhost:3002", 
+  "http://localhost:3003", 
+  "http://localhost:3005",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "http://127.0.0.1:3002",
+  "http://127.0.0.1:3003",
+  "http://127.0.0.1:3005",
+  "https://gameonindia.tech",
+  "http://gameonindia.tech",
+  "http://145.223.21.134"
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000", 
-    "http://localhost:3001", 
-    "http://localhost:3002", 
-    "http://localhost:3003", 
-    "http://localhost:3005",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "http://127.0.0.1:3003",
-    "http://127.0.0.1:3005"
-  ],
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
