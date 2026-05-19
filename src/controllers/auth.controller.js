@@ -133,6 +133,21 @@ export const login = async (req, res) => {
   }
 };
 
+// LOGOUT
+export const logout = async (req, res) => {
+  try {
+    // For JWT, logout is usually handled on frontend by removing token.
+    // However, having a backend endpoint is standard for apps to clear sessions/cookies.
+    res.json({
+      success: true,
+      msg: "Logged out successfully"
+    });
+  } catch (err) {
+    console.error("Logout Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
 // IMPERSONATE (Login as another user)
 // @access Private (Superadmin only)
 export const impersonate = async (req, res) => {
