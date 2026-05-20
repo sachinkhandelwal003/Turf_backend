@@ -1,4 +1,5 @@
 import Tournament from "../models/tournament.model.js";
+import User from "../models/auth/user.model.js";
 
 // @desc    Create a new tournament
 // @route   POST /api/tournaments
@@ -266,6 +267,7 @@ export const registerTournament = async (req, res) => {
 
     // Add team to registeredTeams
     const newTeam = {
+      user: req.user.id,
       name: teamName,
       captain: captainName,
       email: email,
@@ -341,6 +343,79 @@ export const getAllRegistrations = async (req, res) => {
   }
 };
 
+// @desc    Get my tournament registrations
+// @route   GET /api/tournaments/registrations/my
+// @access  Private
+export const getMyRegistrations = async (req, res) => {
+    try {
+      const user = req.user;
+      const userEmail = user?.email?.toLowerCase().trim();
+      const userPhone = user?.phone?.replace(/[^0-9]/g, '');
+
+      // Search for tournaments where user has registered
+      const tournaments = await Tournament.find({
+        $or: [
+          { "registeredTeams.user": user._id },
+          { "registeredTeams.email": { $regex: new RegExp("^" + userEmail + "$", "i") } },
+          { "registeredTeams.contact": userPhone },
+          // Match phone without prefixes if it's 10 digits
+          ...(userPhone && userPhone.length >= 10 ? [
+            { "registeredTeams.contact": { $regex: new RegExp(userPhone.slice(-10) + "$") } }
+          ] : [])
+        ]
+      }).select("title sport image location startDate registeredTeams");
+
+      const myRegistrations = [];
+      
+      tournaments.forEach(t => {
+        const userRegs = t.registeredTeams.filter(reg => {
+          const regEmail = reg.email?.toLowerCase().trim();
+          const regPhone = reg.contact?.replace(/[^0-9]/g, '');
+          
+          const emailMatch = userEmail && regEmail === userEmail;
+          const phoneMatch = userPhone && (regPhone === userPhone || (userPhone.length >= 10 && regPhone && regPhone.endsWith(userPhone.slice(-10))));
+          const userMatch = reg.user && reg.user.toString() === user._id.toString();
+
+          return userMatch || emailMatch || phoneMatch;
+        });
+        
+        userRegs.forEach(reg => {
+          // Avoid duplicates if same registration matches multiple criteria
+          const isDuplicate = myRegistrations.some(existing => 
+            existing._id.toString() === reg._id.toString()
+          );
+          
+          if (!isDuplicate) {
+            myRegistrations.push({
+              ...reg.toObject(),
+              tournamentId: t._id,
+              tournamentTitle: t.title,
+              tournamentImage: t.image,
+              sport: t.sport,
+              location: t.location?.city || t.location?.venue || (typeof t.location === 'string' ? t.location : 'N/A'),
+              startDate: t.startDate,
+              entryFee: t.entryFee,
+              price: t.entryFee,
+              paidAmount: reg.paymentDetails?.amount || t.entryFee
+            });
+          }
+        });
+      });
+
+    // Sort by registration date descending
+    myRegistrations.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+
+    res.json({
+      success: true,
+      count: myRegistrations.length,
+      registrations: myRegistrations
+    });
+  } catch (err) {
+    console.error("Get My Registrations Error:", err);
+    res.status(500).json({ error: "Server Error while fetching your registrations" });
+  }
+};
+
 // @desc    Delete a tournament registration
 // @route   DELETE /api/tournaments/:tournamentId/registrations/:registrationId
 // @access  Private (Admin/Superadmin)
@@ -354,8 +429,17 @@ export const deleteRegistration = async (req, res) => {
       return res.status(404).json({ error: "Tournament not found" });
     }
 
-    // Check ownership or superadmin
-    if (req.user.role !== 'superadmin' && tournament.owner.toString() !== req.user.id) {
+    // Check authorization: Superadmin, Tournament Owner, or the User who registered
+    const registration = tournament.registeredTeams.id(registrationId);
+    if (!registration) {
+      return res.status(404).json({ error: "Registration not found" });
+    }
+
+    const isSuperAdmin = req.user.role === 'superadmin';
+    const isTournamentOwner = tournament.owner.toString() === req.user.id;
+    const isRegistrationOwner = registration.user && registration.user.toString() === req.user.id;
+
+    if (!isSuperAdmin && !isTournamentOwner && !isRegistrationOwner) {
         return res.status(403).json({ error: "Not authorized to delete this registration" });
     }
 

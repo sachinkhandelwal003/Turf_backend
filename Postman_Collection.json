@@ -365,7 +365,10 @@
               { "key": "Content-Type", "value": "application/json" },
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "body": { "mode": "raw", "raw": "{\"turfId\": \"{{turf_id}}\", \"sport\": \"Cricket\", \"date\": \"2026-05-20\", \"startTime\": \"18:00\", \"endTime\": \"19:00\", \"courts\": [\"Court A\"]}" },
+            "body": { 
+              "mode": "raw", 
+              "raw": "{\n  \"turfId\": \"{{turf_id}}\",\n  \"sport\": \"Cricket\",\n  \"date\": \"2026-05-20\",\n  \"slots\": [\"06:00 - 07:00\", \"07:00 - 08:00\"],\n  \"price\": 2000,\n  \"courts\": [\"Court 1\"],\n  \"paymentMethod\": \"upi\",\n  \"usedCoins\": 0\n}" 
+            },
             "url": { "raw": "{{base_url}}/bookings", "host": ["{{base_url}}"], "path": ["bookings"] }
           }
         },
@@ -476,8 +479,21 @@
                   { "key": "Content-Type", "value": "application/json" },
                   { "key": "Authorization", "value": "Bearer {{token}}" }
                 ],
-                "body": { "mode": "raw", "raw": "{\"teamName\": \"Elite Team\"}" },
+                "body": { 
+                  "mode": "raw", 
+                  "raw": "{\n  \"teamName\": \"MI\",\n  \"captainName\": \"Rohit Sharma\",\n  \"email\": \"rohit@example.com\",\n  \"phone\": \"9876543210\",\n  \"altPhone\": \"9876543211\",\n  \"address\": \"Mumbai, India\",\n  \"members\": [\n    { \"name\": \"Surya\", \"role\": \"Batsman\" },\n    { \"name\": \"Bumrah\", \"role\": \"Bowler\" }\n  ],\n  \"paymentId\": \"pay_12345\",\n  \"paymentMethod\": \"upi\"\n}" 
+                },
                 "url": { "raw": "{{base_url}}/tournaments/{{tournament_id}}/register", "host": ["{{base_url}}"], "path": ["tournaments", "{{tournament_id}}", "register"] }
+              }
+            },
+            {
+              "name": "Get My Registrations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "url": { "raw": "{{base_url}}/tournaments/registrations/my", "host": ["{{base_url}}"], "path": ["tournaments", "registrations", "my"] }
               }
             }
           ]

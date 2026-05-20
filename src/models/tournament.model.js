@@ -78,6 +78,10 @@ const tournamentSchema = new mongoose.Schema(
     },
     registeredTeams: [
       {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
         name: String,
         captain: String,
         email: String,
