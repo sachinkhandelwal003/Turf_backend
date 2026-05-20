@@ -650,9 +650,18 @@ export const getTurfById = async (
       });
     }
 
+    // Find other turfs by the same owner (sibling venues)
+    const siblingTurfs = await Turf.find({
+      owner: turf.owner._id,
+      _id: { $ne: turf._id }
+    }).select("name sports images location status isActive");
+
+    console.log(`Found ${siblingTurfs.length} siblings for owner ${turf.owner._id}`);
+
     res.json({
       success: true,
       turf,
+      siblingTurfs
     });
   } catch (err) {
     console.error("Get Turf Error:", err);
