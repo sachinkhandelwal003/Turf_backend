@@ -69,4 +69,24 @@ app.use("/api/billing", billingRoutes);
 app.use("/api/venue-leads", venueLeadRoutes);
 app.use("/api/settlements", settlementRoutes);
 
+// --- Error Handler ---
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR HANDLER:", err);
+  
+  // Handle Multer errors
+  if (err.name === 'MulterError') {
+    return res.status(400).json({
+      success: false,
+      msg: `Upload Error: ${err.message}`
+    });
+  }
+
+  // Handle custom errors (like our file filter error)
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    msg: err.message || "Internal Server Error"
+  });
+});
+
 export default app;

@@ -1,51 +1,5 @@
 import Master from "../models/master.model.js";
 
-export const getMasters = async (req, res) => {
-  try {
-    const masters = await Master.find({ isActive: true }).sort("name");
-    res.json({ success: true, masters });
-  } catch (err) {
-    console.log(err);
-
-res.status(500).json({
-  error: err.message,
-});
-  }
-};
-
-export const createMaster = async (req, res) => {
-  try {
-    const { name, category } = req.body;
-    let imageData = "";
-    
-    if (req.file) {
-      imageData = req.file.path || req.file.secure_url;
-    }
-
-  const master = await Master.create({
-  name,
-  category,
-  image: imageData,
-});
-    
-    res.status(201).json({ success: true, master });
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({ error: "This master entry already exists in this category" });
-    }
-    res.status(500).json({ error: "Server Error" });
-  }
-};
-
-export const deleteMaster = async (req, res) => {
-  try {
-    await Master.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Master deleted" });
-  } catch (err) {
-    res.status(500).json({ error: "Server Error" });
-  }
-};
-
 export const updateMaster = async (req, res) => {
   try {
     const { name, category } = req.body;
@@ -70,7 +24,8 @@ export const updateMaster = async (req, res) => {
 
     if (!master) {
       return res.status(404).json({
-        error: "Master entry not found",
+        success: false,
+        msg: "Master entry not found",
       });
     }
 
@@ -84,12 +39,62 @@ export const updateMaster = async (req, res) => {
 
     if (err.code === 11000) {
       return res.status(400).json({
-        error: "This master entry already exists in this category",
+        success: false,
+        msg: "This master entry already exists in this category",
       });
     }
 
     res.status(500).json({
-      error: err.message,
+      success: false,
+      msg: err.message || "Internal server error",
     });
+  }
+};
+
+export const createMaster = async (req, res) => {
+  try {
+    const { name, category } = req.body;
+    let imageData = "";
+    
+    if (req.file) {
+      imageData = req.file.path || req.file.secure_url;
+    }
+
+    const master = await Master.create({
+      name,
+      category,
+      image: imageData,
+    });
+    
+    res.status(201).json({ success: true, master });
+  } catch (err) {
+    console.log("CREATE MASTER ERROR:", err);
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        msg: "This master entry already exists in this category" 
+      });
+    }
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
+
+export const deleteMaster = async (req, res) => {
+  try {
+    await Master.findByIdAndDelete(req.params.id);
+    res.json({ success: true, msg: "Master deleted successfully" });
+  } catch (err) {
+    console.log("DELETE MASTER ERROR:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
+
+export const getMasters = async (req, res) => {
+  try {
+    const masters = await Master.find({ isActive: true }).sort("name");
+    res.json({ success: true, masters });
+  } catch (err) {
+    console.log("GET MASTERS ERROR:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 }; 
