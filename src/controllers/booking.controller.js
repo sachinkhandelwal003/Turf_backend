@@ -42,7 +42,7 @@ const awardCoins = async (userId, bookingId) => {
     const booking = await Booking.findById(bookingId);
     if (!booking || booking.coinsAwarded) return;
 
-    // Check if this is the user's first confirmed/completed booking
+    // Check how many confirmed/completed bookings the user has (excluding current one)
     const confirmedBookingsCount = await Booking.countDocuments({
       user: userId,
       status: { $in: ["confirmed", "completed"] },
@@ -51,15 +51,23 @@ const awardCoins = async (userId, bookingId) => {
 
     let coinsToAward = 0;
     if (confirmedBookingsCount === 0) {
+      // First booking
       coinsToAward = 100;
-    } else {
+    } else if (confirmedBookingsCount === 1) {
+      // Second booking
       coinsToAward = 50;
+    } else {
+      // 3rd booking onwards
+      coinsToAward = 0;
     }
 
-    await User.findByIdAndUpdate(userId, { $inc: { coins: coinsToAward } });
+    if (coinsToAward > 0) {
+      await User.findByIdAndUpdate(userId, { $inc: { coins: coinsToAward } });
+      console.log(`Awarded ${coinsToAward} coins to user ${userId} for booking ${bookingId}`);
+    }
+
     booking.coinsAwarded = true;
     await booking.save();
-    console.log(`Awarded ${coinsToAward} coins to user ${userId} for booking ${bookingId}`);
   } catch (err) {
     console.error("Award Coins Error:", err);
   }
