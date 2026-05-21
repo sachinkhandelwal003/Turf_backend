@@ -7,7 +7,8 @@ import nodemailer from 'nodemailer';
 export const sendEmail = async (options) => {
   // Check if email config exists
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error('Email credentials are not configured in .env file');
+    console.error('CRITICAL ERROR: Email credentials are not configured in .env file');
+    throw new Error('Email service is currently unavailable.');
   }
 
   // Create a transporter

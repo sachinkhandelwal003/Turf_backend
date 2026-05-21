@@ -74,7 +74,7 @@ export const register = async (req, res) => {
     });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ error: "Server Error. Please try again later." });
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
 
@@ -84,7 +84,7 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ msg: "Email and password are required" });
+      return res.status(400).json({ success: false, msg: "Email and password are required" });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -92,18 +92,18 @@ export const login = async (req, res) => {
     // check user
     const user = await User.findOne({ email: cleanEmail });
     if (!user) {
-      return res.status(400).json({ msg: "Invalid credentials" }); // Pro tip: Don't say "User not found", say "Invalid credentials"
+      return res.status(400).json({ success: false, msg: "Invalid email or password" });
     }
 
     // check if user is active
     if (!user.isActive) {
-      return res.status(403).json({ msg: "Your account is deactivated. Please contact admin." });
+      return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
     }
 
-    // compare password
+    // check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ msg: "Invalid credentials" });
+      return res.status(400).json({ success: false, msg: "Invalid email or password" });
     }
 
     // token
@@ -129,22 +129,17 @@ export const login = async (req, res) => {
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ error: "Server Error. Please try again later." });
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
 
 // LOGOUT
 export const logout = async (req, res) => {
   try {
-    // For JWT, logout is usually handled on frontend by removing token.
-    // However, having a backend endpoint is standard for apps to clear sessions/cookies.
-    res.json({
-      success: true,
-      msg: "Logged out successfully"
-    });
+    res.json({ success: true, msg: "Logged out successfully" });
   } catch (err) {
     console.error("Logout Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
@@ -271,7 +266,7 @@ export const batchUpdateUsers = async (req, res) => {
     res.json({ success: true, results });
   } catch (err) {
     console.error("Batch Update Users Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
@@ -281,27 +276,28 @@ export const updatePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return res.status(400).json({ msg: "All password fields are required" });
+      return res.status(400).json({ success: false, msg: "All password fields are required" });
     }
 
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({ msg: "New passwords do not match" });
+      return res.status(400).json({ success: false, msg: "New passwords do not match" });
     }
 
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ msg: "User not found" });
+      return res.status(404).json({ success: false, msg: "User not found" });
     }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ msg: "Current password is incorrect" });
+      return res.status(400).json({ success: false, msg: "Current password is incorrect" });
     }
 
     // Password strength validation
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({ 
+        success: false,
         msg: "New password is too weak. Must contain 8+ characters, 1 uppercase, 1 number, and 1 special character." 
       });
     }
@@ -313,7 +309,7 @@ export const updatePassword = async (req, res) => {
     res.json({ success: true, msg: "Password updated successfully" });
   } catch (err) {
     console.error("Update Password Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
@@ -414,34 +410,23 @@ export const forgotPassword = async (req, res) => {
         html
       });
 
-      res.status(200).json({ success: true, msg: "Email sent" });
+      res.status(200).json({ success: true, msg: "Password reset link sent to your email." });
     } catch (err) {
       console.error("Email send error details:", err);
       user.resetPasswordToken = null;
       user.resetPasswordExpires = null;
       await user.save();
 
-      let errorMsg = "Email could not be sent.";
-      
-      if (err.message.includes('Invalid login')) {
-        errorMsg = "Invalid Email App Password. Please check your .env file.";
-      } else if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
-        errorMsg = "Connection to email server failed. Check your internet.";
-      } else if (err.message.includes('not configured')) {
-        errorMsg = "Email service not configured.";
-      } else {
-        // Show the actual error message for debugging
-        errorMsg = `Email Error: ${err.message}`;
-      }
-
+      // Return a professional, generic message to the user
+      // Log the specific error for the developer internally
       return res.status(500).json({ 
         success: false, 
-        msg: errorMsg
+        msg: "Unable to send reset email. Please try again later or contact support."
       });
     }
   } catch (err) {
     console.error("Forgot Password Error:", err);
-    res.status(500).json({ success: false, error: "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
@@ -454,36 +439,34 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, msg: "Token and password are required" });
     }
 
-    // 1. Hash the token from URL to compare with stored hash
-    const hashedToken = crypto
+    // 1. Hash token (since we stored hashed version)
+    const resetPasswordToken = crypto
       .createHash("sha256")
       .update(token)
       .digest("hex");
 
-    // 2. Find user by token and ensure token is not expired
+    // 2. Find user with valid token and expiry
     const user = await User.findOne({
-      resetPasswordToken: hashedToken,
+      resetPasswordToken,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ success: false, msg: "Invalid or expired token" });
+      return res.status(400).json({ success: false, msg: "Invalid or expired reset token" });
     }
 
     // 3. Set new password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
-    
-    // 4. Clear reset token fields
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
 
     await user.save();
 
     res.status(200).json({ success: true, msg: "Password reset successful" });
   } catch (err) {
     console.error("Reset Password Error:", err);
-    res.status(500).json({ success: false, error: "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 

@@ -41,26 +41,30 @@ export const createVenueLead = async (req, res) => {
       lead,
     });
   } catch (err) {
-    console.error("Create Venue Lead Error:", err);
-    res.status(500).json({ success: false, error: "Server Error. Please try again later." });
+    console.error("Submit Lead Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
 
+// GET ALL LEADS (Admin/Superadmin only)
 export const getVenueLeads = async (req, res) => {
   try {
-    const leads = await VenueLead.find().sort("-createdAt");
+    const leads = await VenueLead.find().sort({ createdAt: -1 });
     res.json({ success: true, leads });
   } catch (err) {
-    console.error("Get Venue Leads Error:", err);
-    res.status(500).json({ success: false, error: "Server Error" });
+    console.error("Get Leads Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
+// UPDATE LEAD STATUS
 export const updateVenueLeadStatus = async (req, res) => {
   try {
     const { status, notes } = req.body;
+    const { id } = req.params;
+
     const lead = await VenueLead.findByIdAndUpdate(
-      req.params.id,
+      id,
       { status, notes },
       { new: true }
     );
@@ -71,14 +75,16 @@ export const updateVenueLeadStatus = async (req, res) => {
 
     res.json({ success: true, msg: "Lead status updated", lead });
   } catch (err) {
-    console.error("Update Venue Lead Status Error:", err);
-    res.status(500).json({ success: false, error: "Server Error" });
+    console.error("Update Lead Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
 
+// DELETE LEAD
 export const deleteVenueLead = async (req, res) => {
   try {
-    const lead = await VenueLead.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const lead = await VenueLead.findByIdAndDelete(id);
 
     if (!lead) {
       return res.status(404).json({ success: false, msg: "Lead not found" });
@@ -86,7 +92,7 @@ export const deleteVenueLead = async (req, res) => {
 
     res.json({ success: true, msg: "Lead deleted successfully" });
   } catch (err) {
-    console.error("Delete Venue Lead Error:", err);
-    res.status(500).json({ success: false, error: "Server Error" });
+    console.error("Delete Lead Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };

@@ -298,12 +298,12 @@ export const registerTournament = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Registration successful",
+      msg: "Registration successful",
       team: newTeam
     });
   } catch (err) {
     console.error("Tournament Registration Error:", err);
-    res.status(500).json({ error: err.message || "Server Error" });
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
 
@@ -319,7 +319,7 @@ export const getAllRegistrations = async (req, res) => {
 
     const tournaments = await Tournament.find(query)
       .select("title registeredTeams")
-      .sort("-createdAt");
+      .sort({ createdAt: -1 });
 
     const allRegistrations = tournaments.flatMap(t => 
       (t.registeredTeams || []).map(reg => ({
@@ -330,7 +330,7 @@ export const getAllRegistrations = async (req, res) => {
     );
 
     // Sort by registration date descending
-    allRegistrations.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+    allRegistrations.sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
 
     res.json({
       success: true,
@@ -339,7 +339,7 @@ export const getAllRegistrations = async (req, res) => {
     });
   } catch (err) {
     console.error("Get All Registrations Error:", err);
-    res.status(500).json({ error: "Server Error while fetching registrations" });
+    res.status(500).json({ success: false, msg: "Internal server error while fetching registrations" });
   }
 };
 
