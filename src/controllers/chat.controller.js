@@ -113,7 +113,7 @@ export const sendMessage = async (req, res) => {
                        req.file.mimetype.startsWith('audio/') ? 'audio' : 'document';
       
       fileData = {
-        url: `/uploads/${req.file.filename}`,
+        url: req.file.path || req.file.secure_url,
         name: req.file.originalname,
         type: fileType,
         size: req.file.size

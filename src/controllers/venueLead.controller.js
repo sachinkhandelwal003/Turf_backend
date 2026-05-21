@@ -22,7 +22,7 @@ export const createVenueLead = async (req, res) => {
 
     let photos = [];
     if (req.files && req.files.photos) {
-      photos = req.files.photos.map((file) => `/uploads/${file.filename}`);
+      photos = req.files.photos.map((file) => file.path || file.secure_url);
     }
 
     const lead = await VenueLead.create({

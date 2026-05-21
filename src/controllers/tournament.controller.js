@@ -11,10 +11,10 @@ export const createTournament = async (req, res) => {
 
     if (req.files) {
       if (req.files.image && req.files.image[0]) {
-        body.image = `/uploads/${req.files.image[0].filename}`;
+        body.image = req.files.image[0].path || req.files.image[0].secure_url;
       }
       if (req.files.gallery) {
-        body.gallery = req.files.gallery.map(file => `/uploads/${file.filename}`);
+        body.gallery = req.files.gallery.map(file => file.path || file.secure_url);
       }
     }
 
@@ -168,10 +168,10 @@ export const updateTournament = async (req, res) => {
     
     if (req.files) {
       if (req.files.image && req.files.image[0]) {
-        body.image = `/uploads/${req.files.image[0].filename}`;
+        body.image = req.files.image[0].path || req.files.image[0].secure_url;
       }
       if (req.files.gallery) {
-        const newGallery = req.files.gallery.map(file => `/uploads/${file.filename}`);
+        const newGallery = req.files.gallery.map(file => file.path || file.secure_url);
         
         // Handle existing gallery merging
         let finalGallery = [];

@@ -33,20 +33,20 @@ export const updateSettings = async (req, res) => {
     // Handle File Uploads
     if (req.files) {
       if (req.files.frontendLogo) {
-        updateData.frontendLogo = `/uploads/${req.files.frontendLogo[0].filename}`;
+        updateData.frontendLogo = req.files.frontendLogo[0].path || req.files.frontendLogo[0].secure_url;
       } else if (req.body.frontendLogo === "") {
         updateData.frontendLogo = "";
       }
 
       if (req.files.backendLogo) {
-        updateData.backendLogo = `/uploads/${req.files.backendLogo[0].filename}`;
+        updateData.backendLogo = req.files.backendLogo[0].path || req.files.backendLogo[0].secure_url;
       } else if (req.body.backendLogo === "") {
         updateData.backendLogo = "";
       }
 
       if (req.files.image) {
         if (!updateData.heroBanner) updateData.heroBanner = {};
-        updateData.heroBanner.image = `/uploads/${req.files.image[0].filename}`;
+        updateData.heroBanner.image = req.files.image[0].path || req.files.image[0].secure_url;
       } else if (req.body.heroBannerImage === "") {
         if (!updateData.heroBanner) updateData.heroBanner = {};
         updateData.heroBanner.image = "";

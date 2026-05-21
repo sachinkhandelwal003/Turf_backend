@@ -202,10 +202,10 @@ export const updateProfile = async (req, res) => {
 
     if (req.files) {
       if (req.files.profilePhoto) {
-        updateData.profilePhoto = `/uploads/${req.files.profilePhoto[0].filename}`;
+        updateData.profilePhoto = req.files.profilePhoto[0].path || req.files.profilePhoto[0].secure_url;
       }
       if (req.files.coverPhoto) {
-        updateData.coverPhoto = `/uploads/${req.files.coverPhoto[0].filename}`;
+        updateData.coverPhoto = req.files.coverPhoto[0].path || req.files.coverPhoto[0].secure_url;
       }
     }
 
@@ -539,7 +539,7 @@ export const updateUserRBAC = async (req, res) => {
     }
 
     if (req.file) {
-      updateData.profilePhoto = `/uploads/${req.file.filename}`;
+      updateData.profilePhoto = req.file.path || req.file.secure_url;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -585,7 +585,7 @@ export const createUser = async (req, res) => {
     };
 
     if (req.file) {
-      userData.profilePhoto = `/uploads/${req.file.filename}`;
+      userData.profilePhoto = req.file.path || req.file.secure_url;
     }
 
     const user = await User.create(userData);

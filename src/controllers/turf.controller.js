@@ -35,12 +35,12 @@ export const createTurf = async (req, res) => {
     if (req.files) {
       if (req.files.images) {
         body.images = req.files.images.map(
-          (file) => `/uploads/${file.filename}`
+          (file) => file.path || file.secure_url
         );
       }
 
       if (req.files.logo) {
-        body.logo = `/uploads/${req.files.logo[0].filename}`;
+        body.logo = req.files.logo[0].path || req.files.logo[0].secure_url;
       }
     }
 
@@ -200,7 +200,7 @@ export const updateTurf = async (req, res) => {
         const newImages =
           req.files.images.map(
             (file) =>
-              `/uploads/${file.filename}`
+              file.path || file.secure_url
           );
 
         body.images = [
@@ -212,7 +212,7 @@ export const updateTurf = async (req, res) => {
       }
 
       if (req.files.logo) {
-        body.logo = `/uploads/${req.files.logo[0].filename}`;
+        body.logo = req.files.logo[0].path || req.files.logo[0].secure_url;
       }
     } else {
       body.images = currentImages;
