@@ -19,7 +19,7 @@ export const createMaster = async (req, res) => {
     let imageData = "";
     
     if (req.file) {
-      imageData = `/uploads/${req.file.filename}`;
+      imageData = req.file.path || req.file.secure_url;
     }
 
   const master = await Master.create({
@@ -56,7 +56,7 @@ export const updateMaster = async (req, res) => {
     };
 
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      updateData.image = req.file.path || req.file.secure_url;
     }
 
     const master = await Master.findByIdAndUpdate(

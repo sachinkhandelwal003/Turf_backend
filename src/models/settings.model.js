@@ -41,6 +41,11 @@ const settingsSchema = new mongoose.Schema({
     subtitle: { type: String, default: "Premium sports venues, professional training, and competitive matches. Book your victory in seconds." },
     image: { type: String, default: "/heroimage.png" },
   },
+  razorpay: {
+    enabled: { type: Boolean, default: false },
+    keyId: { type: String, default: "" },
+    keySecret: { type: String, default: "" },
+  },
 }, { timestamps: true });
 
 const Settings = mongoose.model("Settings", settingsSchema);

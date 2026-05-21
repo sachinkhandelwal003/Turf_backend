@@ -29,8 +29,9 @@ const fileFilter = (req, file, cb) => {
   ];
 
   const ext = path.extname(file.originalname).toLowerCase();
+  console.log("Multer File Extension:", ext);
 
-  if (allowedExtensions.includes(ext)) {
+  if (allowedExtensions.includes(ext) || file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
     cb(
