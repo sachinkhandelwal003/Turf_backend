@@ -33,14 +33,15 @@ export const createTurf = async (req, res) => {
     // HANDLE IMAGES
     // ==============================
     if (req.files) {
-      if (req.files.images) {
-        body.images = req.files.images.map(
-          (file) => file.path || file.secure_url
-        );
+      // With upload.any(), req.files is an array
+      const logoFile = req.files.find(f => f.fieldname === 'logo');
+      if (logoFile) {
+        body.logo = logoFile.path || logoFile.secure_url;
       }
 
-      if (req.files.logo) {
-        body.logo = req.files.logo[0].path || req.files.logo[0].secure_url;
+      const imageFiles = req.files.filter(f => f.fieldname === 'images');
+      if (imageFiles.length > 0) {
+        body.images = imageFiles.map(f => f.path || f.secure_url);
       }
     }
 
@@ -58,6 +59,7 @@ export const createTurf = async (req, res) => {
       "operatingHours",
       "courts",
       "slotPricings",
+      "sportConfigs",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -82,6 +84,31 @@ export const createTurf = async (req, res) => {
         ...sp,
         price: Number(sp.price || 0)
       }));
+    }
+
+    // Ensure sportConfigs prices and sub-fields are handled
+    if (Array.isArray(body.sportConfigs)) {
+      body.sportConfigs = body.sportConfigs.map(config => {
+        const sportImagesKey = `sportImages_${config.sportName}`;
+        let sportImages = config.images || [];
+
+        // Handle new sport-specific images
+        if (req.files && req.files[sportImagesKey]) {
+          const newSportImages = req.files[sportImagesKey].map(
+            (file) => file.path || file.secure_url
+          );
+          sportImages = [...sportImages, ...newSportImages];
+        }
+
+        return {
+          ...config,
+          pricePerHour: Number(config.pricePerHour || 0),
+          images: sportImages,
+          slotPricings: Array.isArray(config.slotPricings) 
+            ? config.slotPricings.map(sp => ({ ...sp, price: Number(sp.price || 0) }))
+            : []
+        };
+      });
     }
 
     // ==============================
@@ -196,23 +223,18 @@ export const updateTurf = async (req, res) => {
     // HANDLE NEW IMAGES
     // ==============================
     if (req.files) {
-      if (req.files.images) {
-        const newImages =
-          req.files.images.map(
-            (file) =>
-              file.path || file.secure_url
-          );
-
-        body.images = [
-          ...currentImages,
-          ...newImages,
-        ];
-      } else {
-        body.images = currentImages;
+      // With upload.any(), req.files is an array
+      const logoFile = req.files.find(f => f.fieldname === 'logo');
+      if (logoFile) {
+        body.logo = logoFile.path || logoFile.secure_url;
       }
 
-      if (req.files.logo) {
-        body.logo = req.files.logo[0].path || req.files.logo[0].secure_url;
+      const imageFiles = req.files.filter(f => f.fieldname === 'images');
+      if (imageFiles.length > 0) {
+        const newImages = imageFiles.map(f => f.path || f.secure_url);
+        body.images = [...currentImages, ...newImages];
+      } else {
+        body.images = currentImages;
       }
     } else {
       body.images = currentImages;
@@ -231,6 +253,7 @@ export const updateTurf = async (req, res) => {
       "operatingHours",
       "courts",
       "slotPricings",
+      "sportConfigs",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -248,6 +271,31 @@ export const updateTurf = async (req, res) => {
         }
       }
     });
+
+    // Ensure sportConfigs prices and sub-fields are handled
+    if (Array.isArray(body.sportConfigs)) {
+      body.sportConfigs = body.sportConfigs.map(config => {
+        const sportImagesKey = `sportImages_${config.sportName}`;
+        let sportImages = config.images || [];
+
+        // Handle new sport-specific images
+        if (req.files && req.files[sportImagesKey]) {
+          const newSportImages = req.files[sportImagesKey].map(
+            (file) => file.path || file.secure_url
+          );
+          sportImages = [...sportImages, ...newSportImages];
+        }
+
+        return {
+          ...config,
+          pricePerHour: Number(config.pricePerHour || 0),
+          images: sportImages,
+          slotPricings: Array.isArray(config.slotPricings) 
+            ? config.slotPricings.map(sp => ({ ...sp, price: Number(sp.price || 0) }))
+            : []
+        };
+      });
+    }
 
     // ==============================
     // NUMBER CONVERSION
@@ -308,7 +356,7 @@ export const getTurfAvailability = async (
   res
 ) => {
   try {
-    const { date } = req.query;
+    const { date, sport } = req.query;
 
     if (!date) {
       return res.status(400).json({
@@ -324,6 +372,17 @@ export const getTurfAvailability = async (
       return res.status(404).json({
         error: "Turf not found",
       });
+    }
+
+    // Determine courts for this availability check
+    let targetCourts = turf.courts;
+    if (sport && Array.isArray(turf.sportConfigs)) {
+      const sportConfig = turf.sportConfigs.find(
+        (c) => c.sportName.toLowerCase() === sport.toLowerCase()
+      );
+      if (sportConfig && sportConfig.courts && sportConfig.courts.length > 0) {
+        targetCourts = sportConfig.courts;
+      }
     }
 
     // Get weekday name
@@ -351,7 +410,16 @@ export const getTurfAvailability = async (
     // ==============================
     // GENERATE TIME SLOTS
     // ==============================
-    const slotDuration = turf.slotDuration || 60;
+    let slotDuration = turf.slotDuration || 60;
+    if (sport && Array.isArray(turf.sportConfigs)) {
+      const sportConfig = turf.sportConfigs.find(
+        (c) => c.sportName.toLowerCase() === sport.toLowerCase()
+      );
+      if (sportConfig && sportConfig.slotDuration) {
+        slotDuration = sportConfig.slotDuration;
+      }
+    }
+    
     const slots = [];
 
     let current = parseTimeToMinutes(operatingDay.open);
@@ -397,18 +465,18 @@ export const getTurfAvailability = async (
           ...slot,
 
           totalCourts:
-            turf.courts.length,
+            targetCourts.length,
 
           bookedCourts:
             bookedCourts.length,
 
           availableCourts:
-            turf.courts.length -
+            targetCourts.length -
             bookedCourts.length,
 
           isAvailable:
             bookedCourts.length <
-            turf.courts.length,
+            targetCourts.length,
         };
       });
 

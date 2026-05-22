@@ -44,10 +44,7 @@ router.post(
   "/",
   authMiddleware,
   checkPermission("add_venue"),
-  upload.fields([
-    { name: "logo", maxCount: 1 },
-    { name: "images", maxCount: 10 },
-  ]),
+  upload.any(), // Using any() to handle dynamic sport-specific image fields
   createTurf
 );
 
@@ -55,10 +52,7 @@ router.put(
   "/:id",
   authMiddleware,
   checkPermission("edit_venue"),
-  upload.fields([
-    { name: "logo", maxCount: 1 },
-    { name: "images", maxCount: 10 },
-  ]),
+  upload.any(), // Using any() to handle dynamic sport-specific image fields
   updateTurf
 );
 

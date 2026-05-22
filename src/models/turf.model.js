@@ -148,7 +148,55 @@ const turfSchema = new mongoose.Schema(
       },
     ],
 
+    // Sport specific configurations
+    sportConfigs: [
+      {
+        sportName: {
+          type: String,
+          required: true,
+        },
 
+        pricePerHour: {
+          type: Number,
+          required: true,
+        },
+
+        slotDuration: {
+          type: Number,
+          default: 60, // Default 60 mins
+        },
+
+        slotPricings: [
+          {
+            startTime: String, // e.g. "06:00"
+            endTime: String,   // e.g. "07:00"
+            price: Number,
+            isPeak: {
+              type: Boolean,
+              default: false,
+            },
+          },
+        ],
+
+        courts: [
+          {
+            name: {
+              type: String,
+              required: true,
+            },
+            isActive: {
+              type: Boolean,
+              default: true,
+            },
+          },
+        ],
+
+        images: {
+          type: [String],
+          default: [],
+        },
+      },
+    ],
 
     // Sports
     sports: {

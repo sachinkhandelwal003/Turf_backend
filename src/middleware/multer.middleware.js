@@ -8,7 +8,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: "turf_bookings",
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "jfif", "svg", "pdf"],
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "jfif", "svg", "pdf", "avif"],
     transformation: [{ width: 1000, height: 1000, crop: "limit" }],
   },
 });
@@ -20,7 +20,7 @@ const fileFilter = (req, file, cb) => {
   } else {
     // For other files, check extensions
     const allowedExtensions = [
-      ".jpeg", ".jpg", ".png", ".webp", ".gif", ".jfif", ".svg",
+      ".jpeg", ".jpg", ".png", ".webp", ".gif", ".jfif", ".svg", ".avif",
       ".pdf", ".doc", ".docx", ".xls", ".xlsx" // Added doc support just in case
     ];
 
