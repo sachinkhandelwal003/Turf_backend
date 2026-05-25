@@ -3,6 +3,7 @@ import Turf from "../models/turf.model.js";
 import Role from "../models/auth/role.model.js";
 import Booking from "../models/booking.model.js";
 import Tournament from "../models/tournament.model.js";
+import Master from "../models/master.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -205,3 +206,56 @@ export const getPublicStats = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+// @desc    Get aggregated data for App Home Screen
+// @route   GET /api/dashboard/app-home
+// @access  Public
+export const getAppHomeData = async (req, res) => {
+  try {
+    const [
+      totalTurfs,
+      totalUsers,
+      totalBookings,
+      turfsWithCities,
+      featuredTurfs,
+      upcomingTournaments,
+      sports
+    ] = await Promise.all([
+      Turf.countDocuments({ status: "approved" }),
+      User.countDocuments({ role: "user" }),
+      Booking.countDocuments({ status: { $in: ["confirmed", "completed"] } }),
+      Turf.find({ status: "approved" }).select("location.city"),
+      Turf.find({ status: "approved" })
+        .sort("-rating -createdAt")
+        .limit(10)
+        .select("name location pricePerHour rating images sports"),
+      Tournament.find({ approvalStatus: "approved", status: { $ne: "finished" } })
+        .sort("startDate")
+        .limit(6)
+        .select("title tournamentName sport type startDate endDate location registrationFee images"),
+      Master.find({ category: "sport", isActive: true }).select("name image")
+    ]);
+
+    const uniqueCities = [...new Set(turfsWithCities.map(t => t.location?.city).filter(Boolean))];
+    
+    res.json({
+      success: true,
+      data: {
+        stats: {
+          grounds: totalTurfs,
+          players: totalUsers,
+          cities: uniqueCities.length,
+          bookings: totalBookings
+        },
+        cities: uniqueCities.sort(),
+        sports,
+        featuredTurfs,
+        upcomingTournaments
+      }
+    });
+  } catch (err) {
+    console.error("Get App Home Data Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
