@@ -22,21 +22,19 @@ export const getDashboardStats = async (req, res) => {
     // Apply filters from query params
     if (city) {
       turfQuery["location.city"] = city;
+      tournamentQuery["location.city"] = city;
     }
     if (turfId) {
       turfQuery["_id"] = turfId;
     }
 
-    // Get turf IDs for filtering bookings and tournaments
+    // Get turf IDs for filtering bookings
     const filteredTurfs = await Turf.find(turfQuery).select('_id');
     const filteredTurfIds = filteredTurfs.map(t => t._id);
 
     // Filter bookings based on filtered turfs
-    // For superadmin without filters, we show ALL bookings
     let bookingQuery = {};
-    if (!isSuperadmin) {
-      bookingQuery = { turf: { $in: filteredTurfIds } };
-    } else if (city || turfId) {
+    if (!isSuperadmin || city || turfId) {
       bookingQuery = { turf: { $in: filteredTurfIds } };
     }
 
@@ -76,13 +74,14 @@ export const getDashboardStats = async (req, res) => {
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
 
-    // Calculate Split Booking Revenue (Offline vs Wallet/Online)
+    // Calculate Booking Revenue using Aggregation (Efficient & Dynamic)
     const bookingRevenueResult = await Booking.aggregate([
       { $match: { ...bookingQuery, status: { $in: ["confirmed", "completed"] } } },
       { 
         $group: { 
           _id: null, 
-          total: { $sum: "$paidAmount" },
+          total: { $sum: "$totalAmount" }, // Changed to totalAmount to show full business value
+          paid: { $sum: "$paidAmount" },
           offline: { 
             $sum: { $cond: [{ $eq: ["$isOffline", true] }, "$paidAmount", 0] } 
           },
@@ -93,35 +92,41 @@ export const getDashboardStats = async (req, res) => {
       }
     ]);
 
-    const bookingRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
+    const bookingTotal = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
+    const bookingPaid = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].paid : 0;
     const offlineRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].offline : 0;
     const walletRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].wallet : 0;
 
-    // Calculate Tournament Revenue (Usually online/wallet)
-    const tournaments = await Tournament.find(tournamentQuery).select("registeredTeams");
-    let tournamentRevenue = 0;
-    tournaments.forEach(t => {
-      (t.registeredTeams || []).forEach(reg => {
-        if (reg.paymentDetails && reg.paymentDetails.amount) {
-          tournamentRevenue += reg.paymentDetails.amount;
+    // Calculate Tournament Revenue using Aggregation (More efficient than forEach)
+    const tournamentRevenueResult = await Tournament.aggregate([
+      { $match: tournamentQuery },
+      { $unwind: "$registeredTeams" },
+      { $match: { "registeredTeams.status": "confirmed" } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$registeredTeams.paymentDetails.amount" }
         }
-      });
-    });
+      }
+    ]);
 
-    const totalRevenue = bookingRevenue + tournamentRevenue;
-    const totalWalletRevenue = walletRevenue + tournamentRevenue; // Assuming tournaments are online
+    const tournamentRevenue = tournamentRevenueResult.length > 0 ? tournamentRevenueResult[0].total : 0;
 
-    // Get all turfs (removed .limit(10) to show all data as requested)
+    const totalRevenue = bookingTotal + tournamentRevenue;
+    const totalPaidRevenue = bookingPaid + tournamentRevenue;
+    const totalWalletRevenue = walletRevenue + tournamentRevenue; 
+
+    // Get all turfs
     const recentTurfs = await Turf.find(turfQuery)
       .sort("-createdAt")
       .populate("owner", "name email");
 
-    // Get all users (removed .limit(10) to show all data as requested)
+    // Get all users
     const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
       .select("-password");
 
-    // Get all bookings (removed .limit(10) to show all data as requested)
+    // Get all bookings
     const recentBookings = await Booking.find(bookingQuery)
       .sort("-createdAt")
       .populate("turf", "name")
@@ -155,8 +160,9 @@ export const getDashboardStats = async (req, res) => {
           rejected: rejectedTournaments
         },
         revenue: {
-          total: totalRevenue,
-          bookings: bookingRevenue,
+          total: totalRevenue, // Total business value (totalAmount)
+          paid: totalPaidRevenue, // Actual cash received (paidAmount)
+          bookings: bookingTotal,
           tournaments: tournamentRevenue,
           wallet: totalWalletRevenue,
           offline: offlineRevenue
@@ -228,13 +234,50 @@ export const getAppHomeData = async (req, res) => {
       Turf.find({ status: "approved" })
         .sort("-rating -createdAt")
         .limit(10)
-        .select("name location pricePerHour rating images sports"),
+        .select("name location pricePerHour rating images sports sportConfigs"),
       Tournament.find({ approvalStatus: "approved", status: { $ne: "finished" } })
         .sort("startDate")
         .limit(6)
         .select("title tournamentName sport type startDate endDate location registrationFee images"),
       Master.find({ category: "sport", isActive: true }).select("name image")
     ]);
+
+    const baseUrl = process.env.BASE_URL || "";
+
+    const processImage = (img) => {
+      if (!img) return "";
+      if (img.startsWith("http")) return img;
+      return `${baseUrl}${img.startsWith("/") ? "" : "/"}${img}`;
+    };
+
+    const processedFeaturedTurfs = featuredTurfs.map(t => {
+      let featuredImage = "";
+      if (t.images && t.images.length > 0) {
+        featuredImage = processImage(t.images[0]);
+      } else if (t.sportConfigs && t.sportConfigs.length > 0) {
+        const firstConfigWithImage = t.sportConfigs.find(c => c.images && c.images.length > 0);
+        if (firstConfigWithImage) {
+          featuredImage = processImage(firstConfigWithImage.images[0]);
+        }
+      }
+
+      return {
+        ...t._doc,
+        featuredImage,
+        images: (t.images || []).map(processImage)
+      };
+    });
+
+    const processedTournaments = upcomingTournaments.map(t => ({
+      ...t._doc,
+      images: (t.images || []).map(processImage),
+      featuredImage: t.images && t.images.length > 0 ? processImage(t.images[0]) : ""
+    }));
+
+    const processedSports = sports.map(s => ({
+      ...s._doc,
+      image: processImage(s.image)
+    }));
 
     const uniqueCities = [...new Set(turfsWithCities.map(t => t.location?.city).filter(Boolean))];
     
@@ -248,9 +291,9 @@ export const getAppHomeData = async (req, res) => {
           bookings: totalBookings
         },
         cities: uniqueCities.sort(),
-        sports,
-        featuredTurfs,
-        upcomingTournaments
+        sports: processedSports,
+        featuredTurfs: processedFeaturedTurfs,
+        upcomingTournaments: processedTournaments
       }
     });
   } catch (err) {
