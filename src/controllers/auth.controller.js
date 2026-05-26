@@ -4,6 +4,7 @@ import Permission from "../models/auth/permission.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { sendEmail } from "../utils/email.js";
 
 // REGISTER
@@ -467,6 +468,62 @@ export const resetPassword = async (req, res) => {
   } catch (err) {
     console.error("Reset Password Error:", err);
     res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
+
+// RESET USER PASSWORD (Superadmin only)
+export const resetUserPassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    if (req.user.role !== "superadmin") {
+      return res.status(403).json({ success: false, msg: "Access denied" });
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, msg: "Password must be at least 6 characters" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await User.findByIdAndUpdate(userId, { password: hashedPassword });
+
+    res.json({ success: true, msg: "Password updated successfully" });
+  } catch (err) {
+    console.error("Reset Password Error:", err);
+    res.status(500).json({ success: false, msg: "Server Error" });
+  }
+};
+
+// GET ADMIN ACCOUNTS WITH TURF DETAILS (Superadmin only)
+export const getAdminAccounts = async (req, res) => {
+  try {
+    // Only superadmin should access this
+    if (req.user.role !== "superadmin") {
+      return res.status(403).json({ success: false, msg: "Access denied" });
+    }
+
+    // Find all users with role 'admin'
+    const admins = await User.find({ role: "admin" }).select("-password").lean();
+
+    // For each admin, find their turf
+    const adminAccounts = await Promise.all(
+      admins.map(async (admin) => {
+        const Turf = mongoose.model("Turf");
+        const turf = await Turf.findOne({ owner: admin._id }).select("name location").lean();
+        return {
+          ...admin,
+          turfName: turf ? turf.name : "No Turf Assigned",
+          turfCity: turf ? turf.location?.city : "N/A",
+        };
+      })
+    );
+
+    res.json({ success: true, accounts: adminAccounts });
+  } catch (err) {
+    console.error("Get Admin Accounts Error:", err);
+    res.status(500).json({ success: false, msg: "Server Error" });
   }
 };
 

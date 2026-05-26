@@ -795,23 +795,59 @@
           "name": "Admin Stats",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{base_url}}/dashboard/stats", "host": ["{{base_url}}"], "path": ["dashboard", "stats"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/stats",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "stats"]
+            }
           }
         },
         {
           "name": "Public Stats",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/dashboard/public-stats", "host": ["{{base_url}}"], "path": ["dashboard", "public-stats"] }
+            "url": {
+              "raw": "{{base_url}}/dashboard/public-stats",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "public-stats"]
+            }
+          }
+        },
+        {
+          "name": "App Home Data (Unified)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/dashboard/app-home",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "app-home"]
+            },
+            "description": "Returns stats, cities, sports, featured turfs, and upcoming tournaments for app home screen."
           }
         },
         {
           "name": "Billing Stats",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{base_url}}/billing/stats", "host": ["{{base_url}}"], "path": ["billing", "stats"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/billing/stats",
+              "host": ["{{base_url}}"],
+              "path": ["billing", "stats"]
+            }
           }
         }
       ]
@@ -884,6 +920,67 @@
           ]
         }
       ]
+    },
+    {
+      "name": "11. Matches (Hosting)",
+      "item": [
+        {
+          "name": "Create Match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"turf\": \"{{turf_id}}\",\n  \"title\": \"Evening Football Match\",\n  \"description\": \"Friendly match, everyone welcome!\",\n  \"sport\": \"Football\",\n  \"date\": \"2024-06-25\",\n  \"startTime\": \"18:00\",\n  \"endTime\": \"19:00\",\n  \"totalPlayersNeeded\": 10,\n  \"pricePerPlayer\": 200\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/matches",
+              "host": ["{{base_url}}"],
+              "path": ["matches"]
+            }
+          }
+        },
+        {
+          "name": "Get All Matches",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/matches",
+              "host": ["{{base_url}}"],
+              "path": ["matches"]
+            }
+          }
+        },
+        {
+          "name": "Join Match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/matches/{{match_id}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["matches", "{{match_id}}", "join"]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -901,6 +998,7 @@
     { "key": "permission_id", "value": "", "type": "string" },
     { "key": "review_id", "value": "", "type": "string" },
     { "key": "master_id", "value": "", "type": "string" },
-    { "key": "registration_id", "value": "", "type": "string" }
+    { "key": "registration_id", "value": "", "type": "string" },
+    { "key": "match_id", "value": "", "type": "string" }
   ]
 }

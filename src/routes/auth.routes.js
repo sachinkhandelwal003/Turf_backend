@@ -5,6 +5,8 @@ import {
   logout,
   getProfile, 
   updateProfile,
+  getAdminAccounts,
+  resetUserPassword,
   getAllUsers, 
   updateUserRBAC, 
   batchUpdateUsers,
@@ -36,6 +38,8 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/impersonate", authMiddleware, checkRole(["superadmin"]), impersonate);
 router.get("/profile", authMiddleware, getProfile);
+router.get("/admin-accounts", authMiddleware, checkRole(["superadmin"]), getAdminAccounts);
+router.post("/reset-password-admin", authMiddleware, checkRole(["superadmin"]), resetUserPassword);
 router.put("/profile", authMiddleware, upload.fields([
   { name: 'profilePhoto', maxCount: 1 },
   { name: 'coverPhoto', maxCount: 1 }
