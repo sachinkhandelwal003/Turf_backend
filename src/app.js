@@ -12,6 +12,7 @@ import chatRoutes from "./routes/chat.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
 import venueLeadRoutes from "./routes/venueLead.routes.js";
 import settlementRoutes from "./routes/settlement.routes.js";
+import matchRoutes from "./routes/match.routes.js";
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/venue-leads", venueLeadRoutes);
 app.use("/api/settlements", settlementRoutes);
+app.use("/api/matches", matchRoutes);
 
 // --- Error Handler ---
 app.use((err, req, res, next) => {
