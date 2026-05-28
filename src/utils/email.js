@@ -13,43 +13,48 @@ export const sendEmail = async (options) => {
 
   // Create a transporter
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use STARTTLS
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
     tls: {
-      rejectUnauthorized: false
-    },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
   });
 
-  // Define email options
-  const mailOptions = {
-    from: `"GameOn India" <${process.env.EMAIL_USER}>`,
-    to: options.email,
-    subject: options.subject,
-    text: options.message,
-    html: options.html
-  };
-
-  // Actually send the email
   try {
+    console.log("---------------- EMAIL DEBUG ----------------");
     console.log("Attempting to send email to:", options.email);
-    console.log("Using Host:", process.env.EMAIL_HOST || 'smtp.gmail.com');
-    console.log("Using Port:", process.env.EMAIL_PORT || 587);
-    console.log("Using User:", process.env.EMAIL_USER);
-
+    console.log("Using SMTP User:", process.env.EMAIL_USER);
+    
     // Verify connection configuration
     await transporter.verify();
-    console.log("Server is ready to take our messages");
+    console.log("SMTP Connection Verified Successfully");
+
+    const mailOptions = {
+      from: `"GameOn India" <${process.env.EMAIL_USER}>`,
+      to: options.email,
+      subject: options.subject,
+      text: options.message,
+      html: options.html,
+    };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully! MessageId: %s", info.messageId);
+    console.log("Email Sent Successfully!");
+    console.log("Message ID:", info.messageId);
+    console.log("---------------------------------------------");
     return info;
   } catch (error) {
-    console.error("Nodemailer error details:", error);
+    console.error("---------------- EMAIL ERROR ----------------");
+    console.error("Failed to send email to:", options.email);
+    console.error("Error Message:", error.message);
+    console.error("Error Code:", error.code);
+    console.error("Full Error:", error);
+    console.error("---------------------------------------------");
     throw error;
   }
 };

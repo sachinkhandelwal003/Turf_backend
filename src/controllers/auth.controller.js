@@ -630,6 +630,74 @@ export const createUser = async (req, res) => {
 
     const user = await User.create(userData);
 
+    // --- PRO LEVEL: Send Welcome Email for Admin Accounts ---
+    if (user.role === "admin" || user.role === "superadmin") {
+      const frontendUrl = process.env.FRONTEND_URL || "https://gameonindia.tech";
+      const loginUrl = `${frontendUrl}/admin/login`;
+
+      console.log(`Triggering welcome email for ${user.role}: ${user.email}`);
+
+      const welcomeHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+          .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #1abc60; }
+          .logo { font-size: 28px; font-weight: bold; color: #1abc60; text-decoration: none; }
+          .content { padding: 30px 0; line-height: 1.6; }
+          .cred-box { background-color: #f4fbf7; border: 1px solid #d1f2eb; padding: 20px; border-radius: 12px; margin: 20px 0; }
+          .button-container { text-align: center; margin: 30px 0; }
+          .button { background-color: #1abc60; color: white !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(26, 188, 96, 0.2); }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #eee; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <a href="${frontendUrl}" class="logo">GameOn India</a>
+          </div>
+          <div class="content">
+            <h2 style="color: #1abc60;">Congratulations, ${user.name}!</h2>
+            <p>Welcome to the GameOn India community. You have been registered as a <strong>${user.role.toUpperCase()}</strong> member.</p>
+            <p>You can now manage your venue, bookings, and matches through our admin portal.</p>
+            
+            <div class="cred-box">
+              <h4 style="margin-top: 0;">Your Access Credentials:</h4>
+              <p style="margin-bottom: 5px;"><strong>Email:</strong> ${user.email}</p>
+              <p style="margin-bottom: 5px;"><strong>Password:</strong> ${password}</p>
+              <p style="font-size: 12px; color: #e67e22; margin-top: 10px;">*Please change your password after your first login for security.</p>
+            </div>
+
+            <div class="button-container">
+              <a href="${loginUrl}" class="button">Login to Admin Portal</a>
+            </div>
+
+            <p>If you have any questions, feel free to reply to this email or contact our support team.</p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} GameOn India. All rights reserved.</p>
+            <p>Revolutionizing Sports Management.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      `;
+
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: "Welcome to GameOn India - Admin Access Granted",
+          message: `Welcome ${user.name}! Your admin account has been created. Login with: ${user.email} / ${password}`,
+          html: welcomeHtml
+        });
+        console.log(`Welcome email sent successfully to: ${user.email}`);
+      } catch (emailErr) {
+        console.error("CRITICAL: Welcome email failed to send!");
+        console.error("Email Error Trace:", emailErr.message);
+      }
+    }
+
     const userResponse = user.toObject();
     delete userResponse.password;
 
