@@ -180,3 +180,55 @@ export const joinMatch = async (req, res) => {
     });
   }
 };
+
+// @desc    Get matches for admin panel (role-based)
+// @route   GET /api/matches/admin
+// @access  Private (Admin/Superadmin)
+export const getAdminMatches = async (req, res) => {
+  try {
+    let query = {};
+
+    // If not superadmin, only show matches for turfs owned by this user
+    if (req.user.role !== "superadmin") {
+      const myTurfs = await Turf.find({ owner: req.user.id }).select("_id");
+      const turfIds = myTurfs.map(t => t._id);
+      query.turf = { $in: turfIds };
+    }
+
+    const matches = await Match.find(query)
+      .populate("host", "name profilePhoto phone")
+      .populate("turf", "name location owner")
+      .populate("joinedPlayers.user", "name profilePhoto phone")
+      .sort({ createdAt: -1 });
+
+    // Calculate revenue and shares for each match
+    const matchesWithRevenue = matches.map(match => {
+      const confirmedPlayers = match.joinedPlayers.filter(p => p.status === "confirmed").length;
+      const totalRevenue = confirmedPlayers * match.pricePerPlayer;
+      const adminShare = totalRevenue * 0.8;
+      const superAdminShare = totalRevenue * 0.2;
+      
+      return {
+        ...match.toObject(),
+        revenue: {
+          total: totalRevenue,
+          adminShare,
+          superAdminShare,
+          confirmedPlayers
+        }
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: matches.length,
+      matches: matchesWithRevenue
+    });
+  } catch (error) {
+    console.error("Get Admin Matches Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
+  }
+};

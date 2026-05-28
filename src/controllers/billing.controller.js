@@ -2,6 +2,7 @@ import User from "../models/auth/user.model.js";
 import Turf from "../models/turf.model.js";
 import Booking from "../models/booking.model.js";
 import Tournament from "../models/tournament.model.js";
+import Match from "../models/match.model.js";
 
 /**
  * @desc    Get billing and revenue statistics for Super Admin
@@ -92,9 +93,36 @@ export const getBillingStats = async (req, res) => {
       }
     ]);
 
+    // Match Revenue calculation
+    const matchRevenueResult = await Match.aggregate([
+      { $match: { ...dateQuery, ...turfFilter, status: { $in: ["confirmed", "completed", "full", "open"] } } },
+      {
+        $project: {
+          confirmedPlayersCount: {
+            $size: {
+              $filter: {
+                input: "$joinedPlayers",
+                as: "player",
+                cond: { $eq: ["$$player.status", "confirmed"] }
+              }
+            }
+          },
+          pricePerPlayer: 1
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: { $multiply: ["$confirmedPlayersCount", "$pricePerPlayer"] } },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
     const stats = {
       bookings: bookingStats[0] || { totalRevenue: 0, onlineRevenue: 0, offlineRevenue: 0, count: 0 },
       tournaments: tournamentRevenueResult[0] || { totalRevenue: 0, count: 0 },
+      matches: matchRevenueResult[0] || { totalRevenue: 0, count: 0 },
     };
     
     // Ensure we are working with numbers
@@ -102,8 +130,9 @@ export const getBillingStats = async (req, res) => {
     stats.bookings.onlineRevenue = Number(stats.bookings.onlineRevenue || 0);
     stats.bookings.offlineRevenue = Number(stats.bookings.offlineRevenue || 0);
     stats.tournaments.totalRevenue = Number(stats.tournaments.totalRevenue || 0);
+    stats.matches.totalRevenue = Number(stats.matches.totalRevenue || 0);
     
-    stats.totalRevenue = stats.bookings.totalRevenue + stats.tournaments.totalRevenue;
+    stats.totalRevenue = stats.bookings.totalRevenue + stats.tournaments.totalRevenue + stats.matches.totalRevenue;
 
     // 2. Admin-wise Revenue Breakdown (Only for Super Admin)
     let adminRevenueData = [];
@@ -175,8 +204,33 @@ export const getBillingStats = async (req, res) => {
           }
         ]);
 
+        const adminMatchStats = await Match.aggregate([
+          { $match: { ...dateQuery, turf: { $in: turfIds }, status: { $in: ["confirmed", "completed", "full", "open"] } } },
+          {
+            $project: {
+              confirmedPlayersCount: {
+                $size: {
+                  $filter: {
+                    input: "$joinedPlayers",
+                    as: "player",
+                    cond: { $eq: ["$$player.status", "confirmed"] }
+                  }
+                }
+              },
+              pricePerPlayer: 1
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: { $multiply: ["$confirmedPlayersCount", "$pricePerPlayer"] } }
+            }
+          }
+        ]);
+
         const bookingRev = adminBookingStats[0] || { total: 0, online: 0, offline: 0 };
         const tournamentRev = adminTournaments[0] || { total: 0 };
+        const matchRev = adminMatchStats[0] || { total: 0 };
 
         return {
           adminId: admin._id,
@@ -188,7 +242,8 @@ export const getBillingStats = async (req, res) => {
             offline: Number(bookingRev.offline || 0)
           },
           tournamentRevenue: Number(tournamentRev.total || 0),
-          totalRevenue: Number((bookingRev.total || 0) + (tournamentRev.total || 0))
+          matchRevenue: Number(matchRev.total || 0),
+          totalRevenue: Number((bookingRev.total || 0) + (tournamentRev.total || 0) + (matchRev.total || 0))
         };
       }));
 

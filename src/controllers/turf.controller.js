@@ -11,6 +11,8 @@ const formatMinutes = (mins) =>
   ":" +
   String(mins % 60).padStart(2, "0");
 
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
 // ==============================
 // CREATE TURF
 // ==============================
@@ -18,38 +20,8 @@ export const createTurf = async (req, res) => {
   try {
     const body = { ...req.body };
 
-    // Validation
-    if (
-      !body.name ||
-      body.pricePerHour === undefined ||
-      body.pricePerHour === ""
-    ) {
-      return res.status(400).json({
-        error: "Name and price per hour are required",
-      });
-    }
-
     // ==============================
-    // HANDLE IMAGES
-    // ==============================
-    if (req.files) {
-      // With upload.any(), req.files is an array
-      const logoFile = req.files.find(f => f.fieldname === 'logo');
-      if (logoFile) {
-        body.logo = logoFile.path || logoFile.secure_url;
-      }
-
-      const imageFiles = req.files.filter(f => f.fieldname === 'images');
-      if (imageFiles.length > 0) {
-        body.images = imageFiles.map(f => f.path || f.secure_url);
-      }
-    }
-
-    if (!body.images) body.images = [];
-    if (!body.logo) body.logo = "";
-
-    // ==============================
-    // PARSE JSON FIELDS
+    // PARSE JSON FIELDS FIRST
     // ==============================
     const fieldsToParse = [
       "location",
@@ -78,25 +50,85 @@ export const createTurf = async (req, res) => {
       }
     });
 
-    // Ensure slotPricings prices are numbers after parsing
-    if (Array.isArray(body.slotPricings)) {
-      body.slotPricings = body.slotPricings.map(sp => ({
-        ...sp,
-        price: Number(sp.price || 0)
-      }));
+    // ==============================
+    // CLEANUP EMPTY FIELDS
+    // ==============================
+    Object.keys(body).forEach(key => {
+      if (body[key] === "" || body[key] === null || body[key] === undefined) {
+        delete body[key];
+      }
+      // Remove empty arrays for optional fields
+      if (Array.isArray(body[key]) && body[key].length === 0) {
+        if (["amenities", "slotPricings", "sportConfigs", "rates", "operatingHours"].includes(key)) {
+          delete body[key];
+        }
+      }
+    });
+
+    // Validation
+    if (
+      !body.name ||
+      body.pricePerHour === undefined
+    ) {
+      return res.status(400).json({
+        error: "Name and price per hour are required",
+      });
     }
 
-    // Ensure sportConfigs prices and sub-fields are handled
+    // ==============================
+    // HANDLE IMAGES
+    // ==============================
+    if (req.files) {
+      const logoFile = req.files.find(f => f.fieldname === 'logo');
+      if (logoFile) {
+        body.logo = logoFile.path || logoFile.secure_url;
+      }
+
+      const imageFiles = req.files.filter(f => f.fieldname === 'images');
+      if (imageFiles.length > 0) {
+        body.images = imageFiles.map(f => f.path || f.secure_url);
+      }
+    }
+
+    // ==============================
+    // CONVERT NUMBERS & RATE SYNC
+    // ==============================
+    body.pricePerHour = Number(body.pricePerHour || 0);
+    const basePrice = body.pricePerHour;
+    const surcharge = Number(body.peakHourSurcharge || 0);
+    if (body.peakHourSurcharge !== undefined) body.peakHourSurcharge = surcharge;
+
+    // Ensure rates are always initialized and synchronized
+    const ratesToSync = Array.isArray(body.rates) && body.rates.length > 0 
+      ? body.rates 
+      : days.map(d => ({ day: d, isPeak: false }));
+
+    body.rates = ratesToSync.map(rate => ({
+      day: rate.day,
+      isPeak: !!rate.isPeak,
+      price: rate.isPeak ? (basePrice + surcharge) : basePrice
+    }));
+
+    if (body.slotDuration) body.slotDuration = Number(body.slotDuration);
+
+    // Ensure slotPricings prices are numbers
+    if (Array.isArray(body.slotPricings)) {
+      body.slotPricings = body.slotPricings
+        .filter(sp => sp.price > 0) // Only keep meaningful slots
+        .map(sp => ({ ...sp, price: Number(sp.price) }));
+      if (body.slotPricings.length === 0) delete body.slotPricings;
+    }
+
+    // Handle sportConfigs
     if (Array.isArray(body.sportConfigs)) {
       body.sportConfigs = body.sportConfigs.map(config => {
         const sportImagesKey = `sportImages_${config.sportName}`;
         let sportImages = config.images || [];
 
-        // Handle new sport-specific images
-        if (req.files && req.files[sportImagesKey]) {
-          const newSportImages = req.files[sportImagesKey].map(
-            (file) => file.path || file.secure_url
-          );
+        if (req.files && Array.isArray(req.files)) {
+          const newSportImages = req.files
+            .filter((file) => file.fieldname === sportImagesKey)
+            .map((file) => file.path || file.secure_url);
           sportImages = [...sportImages, ...newSportImages];
         }
 
@@ -105,35 +137,10 @@ export const createTurf = async (req, res) => {
           pricePerHour: Number(config.pricePerHour || 0),
           images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
-            ? config.slotPricings.map(sp => ({ ...sp, price: Number(sp.price || 0) }))
+            ? config.slotPricings.filter(sp => sp.price > 0).map(sp => ({ ...sp, price: Number(sp.price) }))
             : []
         };
       });
-    }
-
-    // ==============================
-    // CONVERT NUMBERS
-    // ==============================
-    body.pricePerHour = Number(body.pricePerHour);
-
-    if (body.peakHourSurcharge) {
-      body.peakHourSurcharge = Number(
-        body.peakHourSurcharge
-      );
-    }
-
-    if (body.slotDuration) {
-      body.slotDuration = Number(
-        body.slotDuration
-      );
-    }
-
-    // Ensure slotPricings prices are numbers after parsing
-    if (Array.isArray(body.slotPricings)) {
-      body.slotPricings = body.slotPricings.map(sp => ({
-        ...sp,
-        price: Number(sp.price || 0)
-      }));
     }
 
     // ==============================
@@ -141,23 +148,10 @@ export const createTurf = async (req, res) => {
     // ==============================
     const turf = await Turf.create({
       ...body,
-
       owner: req.user.id,
-
-      status:
-        req.user.role === "superadmin"
-          ? "approved"
-          : "pending",
-
-      approvedBy:
-        req.user.role === "superadmin"
-          ? req.user.id
-          : null,
-
-      approvedAt:
-        req.user.role === "superadmin"
-          ? new Date()
-          : null,
+      status: req.user.role === "superadmin" ? "approved" : "pending",
+      approvedBy: req.user.role === "superadmin" ? req.user.id : null,
+      approvedAt: req.user.role === "superadmin" ? new Date() : null,
     });
 
     res.status(201).json({
@@ -203,47 +197,7 @@ export const updateTurf = async (req, res) => {
     const body = { ...req.body };
 
     // ==============================
-    // HANDLE EXISTING IMAGES
-    // ==============================
-    let currentImages = [];
-
-    if (body.existingImages) {
-      try {
-        currentImages = JSON.parse(
-          body.existingImages
-        );
-      } catch {
-        currentImages = turf.images || [];
-      }
-    } else {
-      currentImages = turf.images || [];
-    }
-
-    // ==============================
-    // HANDLE NEW IMAGES
-    // ==============================
-    if (req.files) {
-      // With upload.any(), req.files is an array
-      const logoFile = req.files.find(f => f.fieldname === 'logo');
-      if (logoFile) {
-        body.logo = logoFile.path || logoFile.secure_url;
-      }
-
-      const imageFiles = req.files.filter(f => f.fieldname === 'images');
-      if (imageFiles.length > 0) {
-        const newImages = imageFiles.map(f => f.path || f.secure_url);
-        body.images = [...currentImages, ...newImages];
-      } else {
-        body.images = currentImages;
-      }
-    } else {
-      body.images = currentImages;
-    }
-
-    delete body.existingImages;
-
-    // ==============================
-    // PARSE JSON FIELDS
+    // PARSE & CLEANUP FIELDS
     // ==============================
     const fieldsToParse = [
       "location",
@@ -257,20 +211,56 @@ export const updateTurf = async (req, res) => {
     ];
 
     fieldsToParse.forEach((field) => {
-      if (
-        body[field] &&
-        typeof body[field] === "string"
-      ) {
+      if (body[field] && typeof body[field] === "string") {
         try {
           body[field] = JSON.parse(body[field]);
         } catch (error) {
-          console.warn(
-            `Failed to parse ${field}`,
-            error.message
-          );
+          console.warn(`Failed to parse ${field}`, error.message);
         }
       }
     });
+
+    // Cleanup empty fields
+    Object.keys(body).forEach(key => {
+      if (body[key] === "" || body[key] === null || body[key] === undefined) {
+        delete body[key];
+      }
+      if (Array.isArray(body[key]) && body[key].length === 0) {
+        if (["amenities", "slotPricings", "priceHikes"].includes(key)) {
+          delete body[key];
+        }
+      }
+    });
+
+    // ==============================
+    // HANDLE IMAGES
+    // ==============================
+    let currentImages = [];
+    if (body.existingImages) {
+      try {
+        currentImages = JSON.parse(body.existingImages);
+      } catch {
+        currentImages = turf.images || [];
+      }
+    } else {
+      currentImages = turf.images || [];
+    }
+
+    if (req.files) {
+      const logoFile = req.files.find(f => f.fieldname === 'logo');
+      if (logoFile) body.logo = logoFile.path || logoFile.secure_url;
+
+      const imageFiles = req.files.filter(f => f.fieldname === 'images');
+      if (imageFiles.length > 0) {
+        const newImages = imageFiles.map(f => f.path || f.secure_url);
+        body.images = [...currentImages, ...newImages];
+      } else {
+        body.images = currentImages;
+      }
+    } else {
+      body.images = currentImages;
+    }
+    delete body.existingImages;
 
     // Ensure sportConfigs prices and sub-fields are handled
     if (Array.isArray(body.sportConfigs)) {
@@ -278,11 +268,10 @@ export const updateTurf = async (req, res) => {
         const sportImagesKey = `sportImages_${config.sportName}`;
         let sportImages = config.images || [];
 
-        // Handle new sport-specific images
-        if (req.files && req.files[sportImagesKey]) {
-          const newSportImages = req.files[sportImagesKey].map(
-            (file) => file.path || file.secure_url
-          );
+        if (req.files && Array.isArray(req.files)) {
+          const newSportImages = req.files
+            .filter((file) => file.fieldname === sportImagesKey)
+            .map((file) => file.path || file.secure_url);
           sportImages = [...sportImages, ...newSportImages];
         }
 
@@ -291,31 +280,57 @@ export const updateTurf = async (req, res) => {
           pricePerHour: Number(config.pricePerHour || 0),
           images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
-            ? config.slotPricings.map(sp => ({ ...sp, price: Number(sp.price || 0) }))
+            ? config.slotPricings.filter(sp => sp.price > 0).map(sp => ({ ...sp, price: Number(sp.price) }))
             : []
         };
       });
     }
 
     // ==============================
-    // NUMBER CONVERSION
+    // NUMBER CONVERSION & RATE SYNC
     // ==============================
-    if (body.pricePerHour) {
-      body.pricePerHour = Number(
-        body.pricePerHour
-      );
+    if (body.pricePerHour !== undefined) {
+      body.pricePerHour = Number(body.pricePerHour);
+    }
+    if (body.peakHourSurcharge !== undefined) {
+      body.peakHourSurcharge = Number(body.peakHourSurcharge);
     }
 
-    if (body.peakHourSurcharge) {
-      body.peakHourSurcharge = Number(
-        body.peakHourSurcharge
-      );
+    // Always synchronize rates if any price component or rates themselves change
+    // or if the turf is being updated, to ensure consistency.
+    const basePrice = Number(body.pricePerHour !== undefined ? body.pricePerHour : turf.pricePerHour || 0);
+    const surcharge = Number(body.peakHourSurcharge !== undefined ? body.peakHourSurcharge : turf.peakHourSurcharge || 0);
+    
+    // Get the base set of rates to work with
+    let ratesToSync = [];
+    if (Array.isArray(body.rates) && body.rates.length > 0) {
+      ratesToSync = body.rates;
+    } else if (Array.isArray(turf.rates) && turf.rates.length > 0) {
+      ratesToSync = turf.rates.map(r => typeof r.toObject === 'function' ? r.toObject() : r);
+    } else {
+      ratesToSync = days.map(d => ({ day: d, isPeak: false }));
     }
+
+    // Apply the synchronized prices
+    body.rates = ratesToSync.map(r => ({
+      ...r,
+      day: r.day,
+      isPeak: !!r.isPeak,
+      price: r.isPeak ? (basePrice + surcharge) : basePrice
+    }));
 
     if (body.slotDuration) {
       body.slotDuration = Number(
         body.slotDuration
       );
+    }
+
+    // Ensure slotPricings prices are numbers
+    if (Array.isArray(body.slotPricings)) {
+      body.slotPricings = body.slotPricings
+        .filter(sp => sp.price > 0)
+        .map(sp => ({ ...sp, price: Number(sp.price) }));
+      if (body.slotPricings.length === 0) delete body.slotPricings;
     }
 
     // ==============================
@@ -696,6 +711,40 @@ export const getTurfs = async (req, res) => {
   }
 };
 
+
+// ==============================
+// SEARCH TURFS BY NAME (Simplified Search)
+// ==============================
+export const searchTurfsByName = async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query (name) is required",
+      });
+    }
+
+    const turfs = await Turf.find({
+      name: new RegExp(name, "i"),
+      isActive: true,
+      status: "approved",
+    }).select("name location images sports pricePerHour rating");
+
+    res.json({
+      success: true,
+      count: turfs.length,
+      turfs,
+    });
+  } catch (err) {
+    console.error("Search Turfs Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error while searching turfs",
+    });
+  }
+};
 
 // ==============================
 // GET SINGLE TURF

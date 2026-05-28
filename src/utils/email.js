@@ -13,11 +13,16 @@ export const sendEmail = async (options) => {
 
   // Create a transporter
   const transporter = nodemailer.createTransport({
-    service: 'gmail', // Use service instead of host/port for Gmail
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
   });
 
   // Define email options
@@ -35,6 +40,10 @@ export const sendEmail = async (options) => {
     console.log("Using Host:", process.env.EMAIL_HOST || 'smtp.gmail.com');
     console.log("Using Port:", process.env.EMAIL_PORT || 587);
     console.log("Using User:", process.env.EMAIL_USER);
+
+    // Verify connection configuration
+    await transporter.verify();
+    console.log("Server is ready to take our messages");
 
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully! MessageId: %s", info.messageId);

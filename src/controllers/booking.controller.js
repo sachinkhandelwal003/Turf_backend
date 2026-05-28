@@ -141,7 +141,8 @@ export const createBooking = async (req, res) => {
     let calculatedPrice = 0;
     const dayName = new Date(date).toLocaleDateString("en-US", { weekday: "long" });
     const dayRate = turf.rates?.find(r => r.day === dayName)?.price;
-    const baseHourlyRate = Number(dayRate ?? turf.pricePerHour ?? 0);
+    // Fix: Ensure we don't pick up 0 as the rate if pricePerHour is available
+    const baseHourlyRate = Number((dayRate && dayRate > 0) ? dayRate : (turf.pricePerHour || 0));
     const duration = Number(turf.slotDuration || 60);
 
     slotList.forEach(s => {
@@ -172,13 +173,16 @@ export const createBooking = async (req, res) => {
     const finalIsOffline = !!(isAdmin && isOffline);
     const finalPaymentStrategy = finalIsOffline ? 'full' : (paymentStrategy || 'full');
 
-    let totalAmount = finalPrice + (Number(convenienceFee) || 0);
+    const settings = await Settings.findOne();
+    const resolvedConvenienceFee = Number(convenienceFee) || settings?.convenienceFee || 0;
+
+    let totalAmount = finalPrice + resolvedConvenienceFee;
     
     // Deduct coins from total amount if used
+    let coinDiscount = 0;
     if (usedCoins && usedCoins > 0) {
-      const settings = await Settings.findOne();
       const coinValue = settings?.coinValue || 1;
-      const coinDiscount = usedCoins * coinValue;
+      coinDiscount = usedCoins * coinValue;
       totalAmount = Math.max(0, totalAmount - coinDiscount);
     }
 
@@ -186,9 +190,10 @@ export const createBooking = async (req, res) => {
     if (finalPaymentStrategy === 'full') {
       paidAmount = totalAmount;
     } else if (finalPaymentStrategy === 'partial') {
-      paidAmount = totalAmount * 0.25;
+      // Partial = 25% of Venue Price + 100% of Fee - Discount
+      paidAmount = (finalPrice * 0.25) + resolvedConvenienceFee - coinDiscount;
     }
-    const balanceAmount = totalAmount - paidAmount;
+    const balanceAmount = Math.max(0, totalAmount - paidAmount);
 
     const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
@@ -207,7 +212,7 @@ export const createBooking = async (req, res) => {
       paidAmount,
       balanceAmount,
       usedCoins: Number(usedCoins) || 0,
-      convenienceFee: Number(convenienceFee) || 0,
+      convenienceFee: resolvedConvenienceFee,
       paymentStrategy: finalPaymentStrategy,
       paymentMethod: paymentMethod || (finalIsOffline ? 'offline' : 'online'),
       splitWithSquad: splitWithSquad || false,
@@ -248,7 +253,7 @@ export const getBookingById = async (req, res) => {
   try {
     const ids = req.params.id.split(',');
     const bookings = await Booking.find({ _id: { $in: ids } })
-      .populate("turf")
+      .populate("turf", "name location images pricePerHour rates upiId")
       .populate("user", "name email phone");
 
     if (!bookings || bookings.length === 0) {
@@ -398,7 +403,7 @@ export const getMyBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate("turf", "name location images")
+      .populate("turf", "name location images pricePerHour rates")
       .sort("-date -startTime");
 
     const reviewedBookingIds = await Review.find({
@@ -734,6 +739,154 @@ export const getAdminTurfBookings = async (req, res) => {
     });
   } catch (err) {
     console.error("Get Admin Turf Bookings Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// @desc    Get checkout details (Availability + Pricing)
+// @route   POST /api/bookings/checkout
+// @access  Private
+export const getCheckoutDetails = async (req, res) => {
+  try {
+    const { 
+      turfId, sport, date, slots, courts, usedCoins 
+    } = req.body;
+
+    if (!turfId || !sport || !date || !slots || !slots.length || !courts || !courts.length) {
+      return res.status(400).json({ error: "Missing required checkout parameters" });
+    }
+
+    const turf = await Turf.findById(turfId);
+    if (!turf) {
+      return res.status(404).json({ error: "Turf not found" });
+    }
+
+    // 1. Check Availability
+    const existingBookings = await Booking.find({
+      turf: turfId,
+      date,
+      status: { $ne: "cancelled" },
+      courts: { $in: courts }
+    });
+
+    for (const eb of existingBookings) {
+      for (const s of slots) {
+        const [sStart, sEnd] = s.split(" - ");
+        if (sStart < eb.endTime && sEnd > eb.startTime) {
+          return res.status(400).json({ 
+            available: false,
+            error: `Slot ${s} is already booked for one or more selected courts` 
+          });
+        }
+      }
+    }
+
+    // 2. Calculate Pricing Breakdown
+    let basePrice = 0;
+    let surchargeAmount = 0;
+    let customSlotAmount = 0;
+
+    const dayName = new Date(date).toLocaleDateString("en-US", { weekday: "long" });
+    const dayRate = turf.rates?.find(r => r.day === dayName);
+    const baseHourlyRate = Number((dayRate?.price && dayRate.price > 0) ? dayRate.price : (turf.pricePerHour || 0));
+
+    slots.forEach(s => {
+      const [start, end] = s.split(" - ");
+      const curMins = parseTimeToMinutes(start);
+      const endMins = parseTimeToMinutes(end);
+      const slotDurationHrs = (endMins - curMins) / 60;
+
+      // Base amount for this slot
+      basePrice += baseHourlyRate * slotDurationHrs;
+
+      // Custom slot pricing
+      const customSlot = turf.slotPricings?.find(sp => {
+        const spStart = parseTimeToMinutes(sp.startTime);
+        const spEnd = parseTimeToMinutes(sp.endTime);
+        return curMins < spEnd && endMins > spStart;
+      });
+
+      if (customSlot) {
+        customSlotAmount += Number(customSlot.price || 0);
+      }
+    });
+
+    // Multiply by courts
+    const subtotal = (basePrice + customSlotAmount) * courts.length;
+
+    // Convenience fee from settings
+    const settings = await Settings.findOne();
+    const convenienceFee = settings?.convenienceFee || 0;
+
+    // Coin discount
+    let coinDiscount = 0;
+    if (usedCoins && usedCoins > 0) {
+      const user = await User.findById(req.user.id);
+      if (user.coins >= usedCoins) {
+        const coinValue = settings?.coinValue || 1;
+        coinDiscount = usedCoins * coinValue;
+      }
+    }
+
+    const totalAmount = Math.max(0, subtotal + convenienceFee - coinDiscount);
+
+    res.json({
+      success: true,
+      available: true,
+      breakdown: {
+        basePrice: subtotal - customSlotAmount * courts.length,
+        customSlotPricing: customSlotAmount * courts.length,
+        convenienceFee,
+        coinDiscount,
+        subtotal: subtotal + convenienceFee,
+        totalAmount
+      },
+      paymentDetails: {
+        upiId: turf.upiId,
+        merchantName: turf.name,
+        paymentMethods: ["upi", "card", "wallet"]
+      }
+    });
+  } catch (err) {
+    console.error("Checkout API Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// @desc    Cancel my booking
+// @route   POST /api/bookings/:id/cancel
+// @access  Private
+export const cancelMyBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // Check ownership
+    if (booking.user.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to cancel this booking" });
+    }
+
+    // Check if it's already cancelled or completed
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ error: "Booking is already cancelled" });
+    }
+    if (booking.status === 'completed') {
+      return res.status(400).json({ error: "Cannot cancel a completed booking" });
+    }
+
+    booking.status = 'cancelled';
+    await booking.save();
+
+    res.json({
+      success: true,
+      message: "Booking cancelled successfully",
+      booking
+    });
+  } catch (err) {
+    console.error("Cancel Booking Error:", err);
     res.status(500).json({ error: "Server Error" });
   }
 };

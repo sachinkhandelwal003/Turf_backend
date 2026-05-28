@@ -4,6 +4,7 @@ import Role from "../models/auth/role.model.js";
 import Booking from "../models/booking.model.js";
 import Tournament from "../models/tournament.model.js";
 import Master from "../models/master.model.js";
+import Match from "../models/match.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -112,9 +113,38 @@ export const getDashboardStats = async (req, res) => {
 
     const tournamentRevenue = tournamentRevenueResult.length > 0 ? tournamentRevenueResult[0].total : 0;
 
-    const totalRevenue = bookingTotal + tournamentRevenue;
-    const totalPaidRevenue = bookingPaid + tournamentRevenue;
-    const totalWalletRevenue = walletRevenue + tournamentRevenue; 
+    // Calculate Match Revenue using Aggregation
+    const matchRevenueResult = await Match.aggregate([
+      { $match: { ...bookingQuery, status: { $in: ["confirmed", "completed", "full", "open"] } } },
+      {
+        $project: {
+          confirmedPlayersCount: {
+            $size: {
+              $filter: {
+                input: "$joinedPlayers",
+                as: "player",
+                cond: { $eq: ["$$player.status", "confirmed"] }
+              }
+            }
+          },
+          pricePerPlayer: 1
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $multiply: ["$confirmedPlayersCount", "$pricePerPlayer"] } }
+        }
+      }
+    ]);
+
+    const matchRevenue = matchRevenueResult.length > 0 ? matchRevenueResult[0].total : 0;
+    const matchAdminShare = matchRevenue * 0.8;
+    const matchSuperAdminShare = matchRevenue * 0.2;
+
+    const totalRevenue = bookingTotal + tournamentRevenue + matchRevenue;
+    const totalPaidRevenue = bookingPaid + tournamentRevenue + matchRevenue;
+    const totalWalletRevenue = walletRevenue + tournamentRevenue + matchRevenue; 
 
     // Get all turfs
     const recentTurfs = await Turf.find(turfQuery)
@@ -164,6 +194,11 @@ export const getDashboardStats = async (req, res) => {
           paid: totalPaidRevenue, // Actual cash received (paidAmount)
           bookings: bookingTotal,
           tournaments: tournamentRevenue,
+          matches: {
+            total: matchRevenue,
+            adminShare: matchAdminShare,
+            superAdminShare: matchSuperAdminShare
+          },
           wallet: totalWalletRevenue,
           offline: offlineRevenue
         },

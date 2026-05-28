@@ -9,6 +9,7 @@ import {
   getMyTurfs,
   updateTurfStatus,
   getTurfAvailability,
+  searchTurfsByName,
 } from "../controllers/turf.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -76,6 +77,8 @@ router.get(
 // ==============================
 // PUBLIC ROUTES
 // ==============================
+router.get("/search", searchTurfsByName);
+
 router.get("/", getTurfs);
 
 router.get("/:id", getTurfById);
