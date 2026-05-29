@@ -5,6 +5,7 @@ import Booking from "../models/booking.model.js";
 import Tournament from "../models/tournament.model.js";
 import Master from "../models/master.model.js";
 import Match from "../models/match.model.js";
+import Settlement from "../models/settlement.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -55,7 +56,8 @@ export const getDashboardStats = async (req, res) => {
       totalTournaments,
       pendingTournaments,
       approvedTournaments,
-      rejectedTournaments
+      rejectedTournaments,
+      totalSettlements
     ] = await Promise.all([
       User.countDocuments({ ...userQuery, role: "user" }),
       User.countDocuments({ ...userQuery, role: "admin" }),
@@ -72,8 +74,15 @@ export const getDashboardStats = async (req, res) => {
       Tournament.countDocuments(tournamentQuery),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: { $in: ["pending", null, undefined] } }),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
-      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" }),
+      Settlement.aggregate([
+        { $match: isSuperadmin ? {} : { admin: userId } },
+        { $match: { status: "completed" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ])
     ]);
+
+    const settlementsPaid = totalSettlements.length > 0 ? totalSettlements[0].total : 0;
 
     // Calculate Booking Revenue using Aggregation (Efficient & Dynamic)
     const bookingRevenueResult = await Booking.aggregate([
@@ -81,13 +90,13 @@ export const getDashboardStats = async (req, res) => {
       { 
         $group: { 
           _id: null, 
-          total: { $sum: "$totalAmount" }, // Changed to totalAmount to show full business value
-          paid: { $sum: "$paidAmount" },
+          total: { $sum: { $ifNull: ["$totalAmount", "$price"] } }, // Fallback to price if totalAmount missing
+          paid: { $sum: { $ifNull: ["$paidAmount", 0] } },
           offline: { 
-            $sum: { $cond: [{ $eq: ["$isOffline", true] }, "$paidAmount", 0] } 
+            $sum: { $cond: [{ $eq: ["$isOffline", true] }, { $ifNull: ["$paidAmount", 0] }, 0] } 
           },
           wallet: { 
-            $sum: { $cond: [{ $ne: ["$isOffline", true] }, "$paidAmount", 0] } 
+            $sum: { $cond: [{ $ne: ["$isOffline", true] }, { $ifNull: ["$paidAmount", 0] }, 0] } 
           }
         } 
       }
@@ -102,11 +111,11 @@ export const getDashboardStats = async (req, res) => {
     const tournamentRevenueResult = await Tournament.aggregate([
       { $match: tournamentQuery },
       { $unwind: "$registeredTeams" },
-      { $match: { "registeredTeams.status": "confirmed" } },
+      { $match: { "registeredTeams.status": { $in: ["confirmed", "completed", "paid"] } } },
       {
         $group: {
           _id: null,
-          total: { $sum: "$registeredTeams.paymentDetails.amount" }
+          total: { $sum: { $ifNull: ["$registeredTeams.paymentDetails.amount", 0] } }
         }
       }
     ]);
@@ -115,7 +124,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Calculate Match Revenue using Aggregation
     const matchRevenueResult = await Match.aggregate([
-      { $match: { ...bookingQuery, status: { $in: ["confirmed", "completed", "full", "open"] } } },
+      { $match: { ...bookingQuery, status: { $in: ["open", "full", "completed"] } } },
       {
         $project: {
           confirmedPlayersCount: {
@@ -133,34 +142,48 @@ export const getDashboardStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: { $multiply: ["$confirmedPlayersCount", "$pricePerPlayer"] } }
+          total: { $sum: { $multiply: ["$confirmedPlayersCount", { $ifNull: ["$pricePerPlayer", 0] }] } }
         }
       }
     ]);
 
     const matchRevenue = matchRevenueResult.length > 0 ? matchRevenueResult[0].total : 0;
+    
+    // Revenue Breakdown Logic
+    // Platform usually takes a cut from online payments. 
+    // For matches, it's explicitly 20% according to current logic.
+    // For bookings and tournaments, we can apply a platform fee if defined, or use 20% as a general rule if that's the business model.
+    // Based on frontend: (stats.revenue?.total || 0) * 0.8 is shown as "Pending Amount" for Superadmin.
+    // This implies Venue Share is 80% and Platform Share is 20%.
+
     const matchAdminShare = matchRevenue * 0.8;
     const matchSuperAdminShare = matchRevenue * 0.2;
 
     const totalRevenue = bookingTotal + tournamentRevenue + matchRevenue;
     const totalPaidRevenue = bookingPaid + tournamentRevenue + matchRevenue;
+    
+    // Wallet revenue usually includes all online payments
     const totalWalletRevenue = walletRevenue + tournamentRevenue + matchRevenue; 
+    
+    // Platform Share calculation (20% of total revenue as a standard)
+    const platformShare = totalRevenue * 0.2;
+    const venueShare = totalRevenue * 0.8;
+    
+    // Total Wallet Share (80% of online revenue goes to venue, 20% to platform)
+    const totalVenueWalletShare = totalWalletRevenue * 0.8;
+    const pendingSettlements = totalVenueWalletShare - settlementsPaid;
 
     // Get all turfs
     const recentTurfs = await Turf.find(turfQuery)
       .sort("-createdAt")
-      .populate("owner", "name email");
+      .populate("owner", "name email")
+      .limit(5);
 
     // Get all users
     const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
-      .select("-password");
-
-    // Get all bookings
-    const recentBookings = await Booking.find(bookingQuery)
-      .sort("-createdAt")
-      .populate("turf", "name")
-      .populate("user", "name email");
+      .select("-password")
+      .limit(5);
 
     res.json({
       success: true,
@@ -190,8 +213,12 @@ export const getDashboardStats = async (req, res) => {
           rejected: rejectedTournaments
         },
         revenue: {
-          total: totalRevenue, // Total business value (totalAmount)
-          paid: totalPaidRevenue, // Actual cash received (paidAmount)
+          total: totalRevenue, // Total business value
+          paid: totalPaidRevenue, // Actual cash received
+          platformShare, // Platform's 20%
+          venueShare, // Venues' 80%
+          pendingSettlements: Math.max(0, pendingSettlements), // Amount yet to be paid to venues
+          settlementsPaid, // Amount already paid to venues
           bookings: bookingTotal,
           tournaments: tournamentRevenue,
           matches: {
