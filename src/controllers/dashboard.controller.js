@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/auth/user.model.js";
 import Turf from "../models/turf.model.js";
 import Role from "../models/auth/role.model.js";
@@ -27,17 +28,19 @@ export const getDashboardStats = async (req, res) => {
       tournamentQuery["location.city"] = city;
     }
     if (turfId) {
-      turfQuery["_id"] = turfId;
+      turfQuery["_id"] = new mongoose.Types.ObjectId(turfId);
     }
 
     // Get turf IDs for filtering bookings
     const filteredTurfs = await Turf.find(turfQuery).select('_id');
-    const filteredTurfIds = filteredTurfs.map(t => t._id);
+    const filteredTurfIds = filteredTurfs.map(t => new mongoose.Types.ObjectId(t._id));
+
+    console.log('🔍 Converted Turf IDs (ObjectId):', filteredTurfIds);
 
     // Filter bookings based on filtered turfs
-    let bookingQuery = { turf: { $ne: null } };
+    let bookingQuery = {};
     if (!isSuperadmin || city || turfId) {
-      bookingQuery = { ...bookingQuery, turf: { $in: filteredTurfIds } };
+      bookingQuery = { turf: { $in: filteredTurfIds } };
     }
 
     const [
@@ -56,8 +59,7 @@ export const getDashboardStats = async (req, res) => {
       totalTournaments,
       pendingTournaments,
       approvedTournaments,
-      rejectedTournaments,
-      totalSettlements
+      rejectedTournaments
     ] = await Promise.all([
       User.countDocuments({ ...userQuery, role: "user" }),
       User.countDocuments({ ...userQuery, role: "admin" }),
@@ -74,15 +76,13 @@ export const getDashboardStats = async (req, res) => {
       Tournament.countDocuments(tournamentQuery),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: { $in: ["pending", null, undefined] } }),
       Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "approved" }),
-      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" }),
-      Settlement.aggregate([
-        { $match: isSuperadmin ? {} : { admin: userId } },
-        { $match: { status: "completed" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } }
-      ])
+      Tournament.countDocuments({ ...tournamentQuery, approvalStatus: "rejected" })
     ]);
 
-    const settlementsPaid = totalSettlements.length > 0 ? totalSettlements[0].total : 0;
+    console.log('🔍 Dashboard Filters:', { isSuperadmin, userId, city, turfId });
+    console.log('🔍 Turf Query:', turfQuery);
+    console.log('🔍 Filtered Turf IDs:', filteredTurfIds);
+    console.log('🔍 Booking Query:', bookingQuery);
 
     // Calculate Booking Revenue using Aggregation (Efficient & Dynamic)
     const bookingRevenueResult = await Booking.aggregate([
@@ -90,17 +90,19 @@ export const getDashboardStats = async (req, res) => {
       { 
         $group: { 
           _id: null, 
-          total: { $sum: { $ifNull: ["$totalAmount", "$price"] } }, // Fallback to price if totalAmount missing
-          paid: { $sum: { $ifNull: ["$paidAmount", 0] } },
+          total: { $sum: { $ifNull: ["$totalAmount", "$price"] } }, 
+          paid: { $sum: "$paidAmount" },
           offline: { 
-            $sum: { $cond: [{ $eq: ["$isOffline", true] }, { $ifNull: ["$paidAmount", 0] }, 0] } 
+            $sum: { $cond: [{ $eq: ["$isOffline", true] }, "$paidAmount", 0] } 
           },
           wallet: { 
-            $sum: { $cond: [{ $ne: ["$isOffline", true] }, { $ifNull: ["$paidAmount", 0] }, 0] } 
+            $sum: { $cond: [{ $ne: ["$isOffline", true] }, "$paidAmount", 0] } 
           }
         } 
       }
     ]);
+
+    console.log('📊 Booking Revenue Result:', bookingRevenueResult);
 
     const bookingTotal = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].total : 0;
     const bookingPaid = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].paid : 0;
@@ -111,20 +113,28 @@ export const getDashboardStats = async (req, res) => {
     const tournamentRevenueResult = await Tournament.aggregate([
       { $match: tournamentQuery },
       { $unwind: "$registeredTeams" },
-      { $match: { "registeredTeams.status": { $in: ["confirmed", "completed", "paid"] } } },
+      { $match: { "registeredTeams.status": "confirmed" } },
       {
         $group: {
           _id: null,
-          total: { $sum: { $ifNull: ["$registeredTeams.paymentDetails.amount", 0] } }
+          total: { $sum: "$registeredTeams.paymentDetails.amount" }
         }
       }
     ]);
 
+    console.log('📊 Tournament Revenue Result:', tournamentRevenueResult);
+
     const tournamentRevenue = tournamentRevenueResult.length > 0 ? tournamentRevenueResult[0].total : 0;
 
     // Calculate Match Revenue using Aggregation
+    let matchQuery = {};
+    if (!isSuperadmin || city || turfId) {
+      matchQuery = { turf: { $in: filteredTurfIds } };
+    }
+    console.log('🔍 Match Query:', { ...matchQuery, status: { $in: ["confirmed", "completed", "full", "open"] } });
+    
     const matchRevenueResult = await Match.aggregate([
-      { $match: { ...bookingQuery, status: { $in: ["open", "full", "completed"] } } },
+      { $match: { ...matchQuery, status: { $in: ["confirmed", "completed", "full", "open"] } } },
       {
         $project: {
           confirmedPlayersCount: {
@@ -142,48 +152,101 @@ export const getDashboardStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: { $multiply: ["$confirmedPlayersCount", { $ifNull: ["$pricePerPlayer", 0] }] } }
+          total: { $sum: { $multiply: ["$confirmedPlayersCount", "$pricePerPlayer"] } }
         }
       }
     ]);
+    
+    console.log('📊 Match Revenue Result:', matchRevenueResult);
 
     const matchRevenue = matchRevenueResult.length > 0 ? matchRevenueResult[0].total : 0;
-    
-    // Revenue Breakdown Logic
-    // Platform usually takes a cut from online payments. 
-    // For matches, it's explicitly 20% according to current logic.
-    // For bookings and tournaments, we can apply a platform fee if defined, or use 20% as a general rule if that's the business model.
-    // Based on frontend: (stats.revenue?.total || 0) * 0.8 is shown as "Pending Amount" for Superadmin.
-    // This implies Venue Share is 80% and Platform Share is 20%.
-
     const matchAdminShare = matchRevenue * 0.8;
     const matchSuperAdminShare = matchRevenue * 0.2;
 
     const totalRevenue = bookingTotal + tournamentRevenue + matchRevenue;
     const totalPaidRevenue = bookingPaid + tournamentRevenue + matchRevenue;
-    
-    // Wallet revenue usually includes all online payments
     const totalWalletRevenue = walletRevenue + tournamentRevenue + matchRevenue; 
+
+    // Calculate platform split
+    const platformShare = totalRevenue * 0.2; // Superadmin share (20%)
+    const venueShare = totalRevenue * 0.8; // Venue owners share (80%)
+
+    // Calculate settlement amounts
+    let settlementQuery = {};
+    // For admin: filter settlements where admin is the user
+    if (!isSuperadmin) {
+      settlementQuery = { admin: userId };
+    }
+    console.log('🔍 Settlement Query:', settlementQuery);
     
-    // Platform Share calculation (20% of total revenue as a standard)
-    const platformShare = totalRevenue * 0.2;
-    const venueShare = totalRevenue * 0.8;
+    const settlementsResult = await Settlement.aggregate([
+      { $match: settlementQuery },
+      {
+        $group: {
+          _id: null,
+          totalPaid: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$type", "payout"] }, { $eq: ["$status", "completed"] }] },
+                "$amount",
+                0
+              ]
+            }
+          },
+          totalPending: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$type", "payout"] }, { $eq: ["$status", "pending"] }] },
+                "$amount",
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
     
-    // Total Wallet Share (80% of online revenue goes to venue, 20% to platform)
-    const totalVenueWalletShare = totalWalletRevenue * 0.8;
-    const pendingSettlements = totalVenueWalletShare - settlementsPaid;
+    console.log('📊 Settlements Result:', settlementsResult);
+
+    const totalPaidSettlements = settlementsResult.length > 0 ? settlementsResult[0].totalPaid : 0;
+    const totalPendingSettlements = settlementsResult.length > 0 ? settlementsResult[0].totalPending : 0;
+    const pendingToSettle = (totalWalletRevenue * 0.8) - totalPaidSettlements;
+
+    console.log('💵 Final Revenue Breakdown:', {
+      bookingTotal,
+      tournamentRevenue,
+      matchRevenue,
+      totalRevenue,
+      platformShare,
+      venueShare,
+      totalPaidSettlements,
+      totalPendingSettlements,
+      pendingToSettle
+    });
 
     // Get all turfs
     const recentTurfs = await Turf.find(turfQuery)
       .sort("-createdAt")
-      .populate("owner", "name email")
-      .limit(5);
+      .populate("owner", "name email");
+
+    // Filter to only show turfs that have at least one booking
+    const turfIdsWithBookings = await Booking.distinct("turf", { 
+      turf: { $in: recentTurfs.map(t => t._id) } 
+    });
+    const filteredRecentTurfs = recentTurfs.filter(turf => 
+      turfIdsWithBookings.some(id => id.toString() === turf._id.toString())
+    );
 
     // Get all users
     const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
-      .select("-password")
-      .limit(5);
+      .select("-password");
+
+    // Get all bookings
+    const recentBookings = await Booking.find(bookingQuery)
+      .sort("-createdAt")
+      .populate("turf", "name")
+      .populate("user", "name email");
 
     res.json({
       success: true,
@@ -213,12 +276,8 @@ export const getDashboardStats = async (req, res) => {
           rejected: rejectedTournaments
         },
         revenue: {
-          total: totalRevenue, // Total business value
-          paid: totalPaidRevenue, // Actual cash received
-          platformShare, // Platform's 20%
-          venueShare, // Venues' 80%
-          pendingSettlements: Math.max(0, pendingSettlements), // Amount yet to be paid to venues
-          settlementsPaid, // Amount already paid to venues
+          total: totalRevenue, // Total business value (totalAmount)
+          paid: totalPaidRevenue, // Actual cash received (paidAmount)
           bookings: bookingTotal,
           tournaments: tournamentRevenue,
           matches: {
@@ -227,11 +286,18 @@ export const getDashboardStats = async (req, res) => {
             superAdminShare: matchSuperAdminShare
           },
           wallet: totalWalletRevenue,
-          offline: offlineRevenue
+          offline: offlineRevenue,
+          platformShare: platformShare,
+          venueShare: venueShare,
+          settlements: {
+            paid: totalPaidSettlements,
+            pending: totalPendingSettlements,
+            pendingToSettle: pendingToSettle
+          }
         },
         roles: totalRoles
       },
-      recentTurfs,
+      recentTurfs: filteredRecentTurfs,
       recentUsers
     });
   } catch (err) {

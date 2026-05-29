@@ -121,18 +121,9 @@ export const createTurf = async (req, res) => {
 
     // Handle sportConfigs
     if (Array.isArray(body.sportConfigs)) {
-      const createBaseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5001}`;
       body.sportConfigs = body.sportConfigs.map(config => {
-        const sportName = String(config.sportName || "").trim();
-        const sportImagesKey = `sportImages_${sportName}`;
-        
-        // Strip baseUrl from any existing images (just in case)
-        let sportImages = (config.images || []).map(img => {
-          if (img.startsWith('http')) {
-            return img.replace(createBaseUrl, '');
-          }
-          return img;
-        });
+        const sportImagesKey = `sportImages_${config.sportName}`;
+        let sportImages = config.images || [];
 
         if (req.files && Array.isArray(req.files)) {
           const newSportImages = req.files
@@ -143,7 +134,6 @@ export const createTurf = async (req, res) => {
 
         return {
           ...config,
-          sportName: sportName, // Ensure saved name is trimmed
           pricePerHour: Number(config.pricePerHour || 0),
           images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
@@ -245,17 +235,10 @@ export const updateTurf = async (req, res) => {
     // ==============================
     // HANDLE IMAGES
     // ==============================
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5001}`;
     let currentImages = [];
     if (body.existingImages) {
       try {
-        // Strip baseUrl from existing images
-        currentImages = JSON.parse(body.existingImages).map(img => {
-          if (img.startsWith('http')) {
-            return img.replace(baseUrl, '');
-          }
-          return img;
-        });
+        currentImages = JSON.parse(body.existingImages);
       } catch {
         currentImages = turf.images || [];
       }
@@ -281,42 +264,21 @@ export const updateTurf = async (req, res) => {
 
     // Ensure sportConfigs prices and sub-fields are handled
     if (Array.isArray(body.sportConfigs)) {
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5001}`;
-      
       body.sportConfigs = body.sportConfigs.map(config => {
-        const sportName = String(config.sportName || "").trim();
-        const sportImagesKey = `sportImages_${sportName}`;
-        
-        // Strip baseUrl from existing images to store only relative paths
-        let existingImages = (config.images || []).map(img => {
-          if (img.startsWith('http')) {
-            return img.replace(baseUrl, '');
-          }
-          return img;
-        });
+        const sportImagesKey = `sportImages_${config.sportName}`;
+        let sportImages = config.images || [];
 
         if (req.files && Array.isArray(req.files)) {
           const newSportImages = req.files
             .filter((file) => file.fieldname === sportImagesKey)
             .map((file) => file.path || file.secure_url);
-          existingImages = [...existingImages, ...newSportImages];
-        }
-
-        // Find existing config in database to preserve any missing images
-        const existingDbConfig = turf.sportConfigs?.find(sc => 
-          sc.sportName.trim() === sportName.trim()
-        );
-        
-        // If existing images are empty, try to use database images
-        if (existingImages.length === 0 && existingDbConfig?.images?.length > 0) {
-          existingImages = existingDbConfig.images;
+          sportImages = [...sportImages, ...newSportImages];
         }
 
         return {
           ...config,
-          sportName: sportName, // Ensure saved name is trimmed
           pricePerHour: Number(config.pricePerHour || 0),
-          images: existingImages,
+          images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
             ? config.slotPricings.filter(sp => sp.price > 0).map(sp => ({ ...sp, price: Number(sp.price) }))
             : []
