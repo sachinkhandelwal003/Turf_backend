@@ -65,21 +65,43 @@ export const createMatch = async (req, res) => {
   }
 };
 
-// @desc    Get all open matches
+// @desc    Get all open matches (with search)
 // @route   GET /api/matches
 // @access  Public
 export const getMatches = async (req, res) => {
   try {
-    const { sport, date, city } = req.query;
+    const { sport, date, city, search } = req.query;
     let query = { status: "open", isPrivate: false };
 
     if (sport) query.sport = sport;
     if (date) query.date = date;
 
-    const matches = await Match.find(query)
+    // Build the base match query
+    let matchQuery = Match.find(query);
+
+    // If city is provided, we need to filter by turf's city
+    if (city) {
+      // First find all turfs in the city
+      const turfsInCity = await Turf.find({ "location.city": new RegExp(city, 'i') }).select('_id');
+      const turfIds = turfsInCity.map(t => t._id);
+      matchQuery = Match.find({ ...query, turf: { $in: turfIds } });
+    }
+
+    // Populate the matches
+    let matches = await matchQuery
       .populate("host", "name profilePhoto")
       .populate("turf", "name location images")
       .sort({ date: 1, startTime: 1 });
+
+    // Apply search filter on title, sport, or turf name after population
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      matches = matches.filter(match => 
+        searchRegex.test(match.title) ||
+        searchRegex.test(match.sport) ||
+        (match.turf && searchRegex.test(match.turf.name))
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -88,6 +110,38 @@ export const getMatches = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Matches Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
+  }
+};
+
+// @desc    Get host's match history
+// @route   GET /api/matches/host/my
+// @access  Private
+export const getMyHostedMatches = async (req, res) => {
+  try {
+    const { status } = req.query; // Optional filter by status: open, full, cancelled, completed
+    let query = { host: req.user.id };
+    
+    if (status) {
+      query.status = status;
+    }
+
+    const matches = await Match.find(query)
+      .populate("host", "name profilePhoto")
+      .populate("turf", "name location images")
+      .populate("joinedPlayers.user", "name profilePhoto")
+      .sort({ createdAt: -1 }); // Newest first
+
+    res.status(200).json({
+      success: true,
+      count: matches.length,
+      matches
+    });
+  } catch (error) {
+    console.error("Get My Hosted Matches Error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error"

@@ -1,0 +1,215 @@
+{
+  "info": {
+    "_postman_id": "1234567890",
+    "name": "Turf Booking API",
+    "description": "Postman Collection for Turf Booking Application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id_description": "Turf Booking API Collection",
+    "name": "Turf Booking API",
+    "description": "Postman Collection for Turf Booking Application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Admin/User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login to get access token"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "item": [
+        {
+          "name": "Create Match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"turf\": \"turf_object_id\",\n  \"title\": \"Sunday Cricket Match\",\n  \"description\": \"Friendly cricket match for all levels\",\n  \"sport\": \"Cricket\",\n  \"date\": \"2026-06-02\",\n  \"startTime\": \"10:00\",\n  \"endTime\": \"12:00\",\n  \"totalPlayersNeeded\": 12,\n  \"pricePerPlayer\": 200,\n  \"isPrivate\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/matches",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches"]
+            },
+            "description": "Create a new match to host"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Open Matches (with Search)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches?sport=Cricket&city=Delhi&search=Sunday",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches"],
+              "query": [
+                {
+                  "key": "sport",
+                  "value": "Cricket",
+                  "description": "Filter by sport"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-06-02",
+                  "description": "Filter by date",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "Delhi",
+                  "description": "Filter by turf city"
+                },
+                {
+                  "key": "search",
+                  "value": "Sunday",
+                  "description": "Search by match title, sport, or turf name"
+                }
+              ]
+            },
+            "description": "Get all open, public matches with search and filters"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Match by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "match_object_id",
+                  "description": "Match ID"
+                }
+              ]
+            },
+            "description": "Get details of a specific match"
+          },
+          "response": []
+        },
+        {
+          "name": "Join Match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches/:id/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches", ":id", "join"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "match_object_id",
+                  "description": "Match ID"
+                }
+              ]
+            },
+            "description": "Join an open match"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Hosted Matches (Host History)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches/host/my?status=completed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches", "host", "my"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "description": "Filter by status: open, full, cancelled, completed"
+                }
+              ]
+            },
+            "description": "Get all matches hosted by current user (Host History)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Admin Matches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches/admin/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches", "admin", "all"]
+            },
+            "description": "Get all matches for admin panel"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_bearer_token_here",
+      "type": "string"
+    }
+  ]
+}

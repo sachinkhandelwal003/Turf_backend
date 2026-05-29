@@ -35,9 +35,9 @@ export const getDashboardStats = async (req, res) => {
     const filteredTurfIds = filteredTurfs.map(t => t._id);
 
     // Filter bookings based on filtered turfs
-    let bookingQuery = {};
+    let bookingQuery = { turf: { $ne: null } };
     if (!isSuperadmin || city || turfId) {
-      bookingQuery = { turf: { $in: filteredTurfIds } };
+      bookingQuery = { ...bookingQuery, turf: { $in: filteredTurfIds } };
     }
 
     const [

@@ -580,22 +580,17 @@ export const getAllBookings = async (req, res) => {
         .sort("-createdAt")
         .skip(skip)
         .limit(parseInt(limit)),
-      Booking.countDocuments(query)
+      Booking.countDocuments({ ...query, turf: { $ne: null } })
     ]);
 
     // Filter out bookings where turf was deleted (orphans)
     const validBookings = bookings.filter(b => b.turf !== null);
     
-    // To keep the total count accurate based on valid (non-orphan) bookings, 
-    // we need to adjust the total if we're filtering orphans.
-    // However, for pagination to work correctly with large datasets, 
-    // it's better to just show valid ones.
-    
     res.json({
       success: true,
       bookings: validBookings,
-      total: validBookings.length, // Showing only valid bookings count
-      pages: Math.ceil(validBookings.length / limit),
+      total: totalCount,
+      pages: Math.ceil(totalCount / limit),
       currentPage: parseInt(page)
     });
   } catch (err) {
@@ -723,7 +718,7 @@ export const getAdminTurfBookings = async (req, res) => {
         .sort("-createdAt")
         .skip(skip)
         .limit(parseInt(limit)),
-      Booking.countDocuments(query)
+      Booking.countDocuments({ ...query, turf: { $ne: null } })
     ]);
 
     // Filter out bookings where turf was deleted (orphans)
@@ -732,8 +727,8 @@ export const getAdminTurfBookings = async (req, res) => {
     res.json({
       success: true,
       bookings: validBookings,
-      total: validBookings.length,
-      pages: Math.ceil(validBookings.length / limit),
+      total: totalCount,
+      pages: Math.ceil(totalCount / limit),
       currentPage: parseInt(page),
       myTurfs: myTurfs
     });
