@@ -262,26 +262,59 @@ const messages = await Message.find({
 // GET USER CONVERSATIONS
 export const getUserConversations = async (req, res) => {
   try {
-
     const { userId } = req.params;
 
     const conversations = await Conversation.find({
       participants: userId,
     })
       .sort({ updatedAt: -1 })
-      .populate("participants", "name role");
+      .populate("participants", "name role profilePhoto");
+
+    const conversationsWithUnreadCount = await Promise.all(
+      conversations.map(async (conv) => {
+        const unreadCount = await Message.countDocuments({
+          conversationId: conv._id,
+          senderId: { $ne: userId },
+          isSeen: false,
+        });
+
+        const convObj = conv.toObject();
+        convObj.unreadCount = unreadCount;
+        return convObj;
+      })
+    );
 
     res.status(200).json({
       success: true,
-      conversations,
+      conversations: conversationsWithUnreadCount,
     });
-
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
+  }
+};
 
+// MARK MESSAGES AS SEEN
+export const markMessagesAsSeen = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userId } = req.body;
+
+    await Message.updateMany(
+      { conversationId, senderId: { $ne: userId }, isSeen: false },
+      { $set: { isSeen: true } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Messages marked as seen"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };

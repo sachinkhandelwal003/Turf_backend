@@ -9,6 +9,7 @@ import {
   getAllAdmins,
   deleteMessage,
   reactToMessage,
+  markMessagesAsSeen,
 } from "../controllers/chat.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 
@@ -80,6 +81,13 @@ router.get(
   "/conversations/:userId",
   authMiddleware,
   getUserConversations
+);
+
+// MARK MESSAGES AS SEEN
+router.post(
+  "/messages/:conversationId/seen",
+  authMiddleware,
+  markMessagesAsSeen
 );
 
 export default router;

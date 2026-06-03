@@ -93,10 +93,10 @@ export const getDashboardStats = async (req, res) => {
           total: { $sum: { $ifNull: ["$totalAmount", "$price"] } }, 
           paid: { $sum: "$paidAmount" },
           offline: { 
-            $sum: { $cond: [{ $eq: ["$isOffline", true] }, "$paidAmount", 0] } 
+            $sum: { $cond: [{ $eq: ["$isOffline", true] }, { $ifNull: ["$totalAmount", "$price"] }, 0] } 
           },
           wallet: { 
-            $sum: { $cond: [{ $ne: ["$isOffline", true] }, "$paidAmount", 0] } 
+            $sum: { $cond: [{ $ne: ["$isOffline", true] }, { $ifNull: ["$totalAmount", "$price"] }, 0] } 
           }
         } 
       }
@@ -229,14 +229,6 @@ export const getDashboardStats = async (req, res) => {
       .sort("-createdAt")
       .populate("owner", "name email");
 
-    // Filter to only show turfs that have at least one booking
-    const turfIdsWithBookings = await Booking.distinct("turf", { 
-      turf: { $in: recentTurfs.map(t => t._id) } 
-    });
-    const filteredRecentTurfs = recentTurfs.filter(turf => 
-      turfIdsWithBookings.some(id => id.toString() === turf._id.toString())
-    );
-
     // Get all users
     const recentUsers = await User.find(userQuery)
       .sort("-createdAt")
@@ -297,7 +289,7 @@ export const getDashboardStats = async (req, res) => {
         },
         roles: totalRoles
       },
-      recentTurfs: filteredRecentTurfs,
+      recentTurfs,
       recentUsers
     });
   } catch (err) {
@@ -317,10 +309,10 @@ export const getPublicStats = async (req, res) => {
       totalBookings,
       turfsWithCities
     ] = await Promise.all([
-      Turf.countDocuments({ status: "approved" }),
-      User.countDocuments({ role: "user" }),
-      Booking.countDocuments({ status: { $in: ["confirmed", "completed"] } }),
-      Turf.find({ status: "approved" }).select("location.city")
+      Turf.countDocuments(),
+      User.countDocuments(),
+      Booking.countDocuments(),
+      Turf.find().select("location.city")
     ]);
 
     const uniqueCities = [...new Set(turfsWithCities.map(t => t.location?.city).filter(Boolean))];
@@ -355,10 +347,10 @@ export const getAppHomeData = async (req, res) => {
       upcomingTournaments,
       sports
     ] = await Promise.all([
-      Turf.countDocuments({ status: "approved" }),
-      User.countDocuments({ role: "user" }),
-      Booking.countDocuments({ status: { $in: ["confirmed", "completed"] } }),
-      Turf.find({ status: "approved" }).select("location.city"),
+      Turf.countDocuments(),
+      User.countDocuments(),
+      Booking.countDocuments(),
+      Turf.find().select("location.city"),
       Turf.find({ status: "approved" })
         .sort("-rating -createdAt")
         .limit(10)

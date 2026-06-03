@@ -232,3 +232,34 @@ export const getAdminMatches = async (req, res) => {
     });
   }
 };
+
+// @desc    Get matches hosted by current user (Host History)
+// @route   GET /api/matches/host/my
+// @access  Private
+export const getMyHostedMatches = async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = { host: req.user.id };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const matches = await Match.find(query)
+      .populate("turf", "name location images pricePerHour")
+      .populate("joinedPlayers.user", "name profilePhoto phone")
+      .sort({ date: -1, startTime: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: matches.length,
+      matches
+    });
+  } catch (error) {
+    console.error("Get My Hosted Matches Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
+  }
+};
