@@ -37,11 +37,8 @@ export const getDashboardStats = async (req, res) => {
 
     console.log('🔍 Converted Turf IDs (ObjectId):', filteredTurfIds);
 
-    // Filter bookings based on filtered turfs
-    let bookingQuery = {};
-    if (!isSuperadmin || city || turfId) {
-      bookingQuery = { turf: { $in: filteredTurfIds } };
-    }
+    // Filter bookings based on filtered turfs ALWAYS (so "All Grounds" matches the sum of active grounds)
+    let bookingQuery = { turf: { $in: filteredTurfIds } };
 
     const [
       totalUsers,
@@ -110,27 +107,25 @@ export const getDashboardStats = async (req, res) => {
     const walletRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].wallet : 0;
 
     // Calculate Tournament Revenue using Aggregation (More efficient than forEach)
-    const tournamentRevenueResult = await Tournament.aggregate([
-      { $match: tournamentQuery },
-      { $unwind: "$registeredTeams" },
-      { $match: { "registeredTeams.status": "confirmed" } },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$registeredTeams.paymentDetails.amount" }
+    let tournamentRevenue = 0;
+    if (!turfId) { // Only add tournament revenue if not viewing a specific turf
+      const tournamentRevenueResult = await Tournament.aggregate([
+        { $match: tournamentQuery },
+        { $unwind: "$registeredTeams" },
+        { $match: { "registeredTeams.status": "confirmed" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$registeredTeams.paymentDetails.amount" }
+          }
         }
-      }
-    ]);
-
-    console.log('📊 Tournament Revenue Result:', tournamentRevenueResult);
-
-    const tournamentRevenue = tournamentRevenueResult.length > 0 ? tournamentRevenueResult[0].total : 0;
+      ]);
+      console.log('📊 Tournament Revenue Result:', tournamentRevenueResult);
+      tournamentRevenue = tournamentRevenueResult.length > 0 ? tournamentRevenueResult[0].total : 0;
+    }
 
     // Calculate Match Revenue using Aggregation
-    let matchQuery = {};
-    if (!isSuperadmin || city || turfId) {
-      matchQuery = { turf: { $in: filteredTurfIds } };
-    }
+    let matchQuery = { turf: { $in: filteredTurfIds } };
     console.log('🔍 Match Query:', { ...matchQuery, status: { $in: ["confirmed", "completed", "full", "open"] } });
     
     const matchRevenueResult = await Match.aggregate([
