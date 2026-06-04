@@ -251,6 +251,11 @@ const turfSchema = new mongoose.Schema(
       default: true,
     },
 
+    interestToHost: {
+      type: Boolean,
+      default: false,
+    },
+
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

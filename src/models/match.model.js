@@ -65,7 +65,7 @@ const matchSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["open", "full", "cancelled", "completed"],
+      enum: ["open", "full", "cancelled", "completed", "cancelled hosting"],
       default: "open",
     },
     isPrivate: {

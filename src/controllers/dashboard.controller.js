@@ -32,7 +32,7 @@ export const getDashboardStats = async (req, res) => {
     }
 
     // Get turf IDs for filtering bookings
-    const filteredTurfs = await Turf.find(turfQuery).select('_id');
+    const filteredTurfs = await Turf.find(turfQuery).select('_id owner');
     const filteredTurfIds = filteredTurfs.map(t => new mongoose.Types.ObjectId(t._id));
 
     console.log('🔍 Converted Turf IDs (ObjectId):', filteredTurfIds);
@@ -158,9 +158,9 @@ export const getDashboardStats = async (req, res) => {
     const matchAdminShare = matchRevenue * 0.8;
     const matchSuperAdminShare = matchRevenue * 0.2;
 
-    const totalRevenue = bookingTotal + tournamentRevenue + matchRevenue;
-    const totalPaidRevenue = bookingPaid + tournamentRevenue + matchRevenue;
-    const totalWalletRevenue = walletRevenue + tournamentRevenue + matchRevenue; 
+    const totalRevenue = bookingTotal + matchRevenue;
+    const totalPaidRevenue = bookingPaid + matchRevenue;
+    const totalWalletRevenue = walletRevenue + matchRevenue; 
 
     // Calculate platform split
     const platformShare = totalRevenue * 0.2; // Superadmin share (20%)
@@ -168,9 +168,11 @@ export const getDashboardStats = async (req, res) => {
 
     // Calculate settlement amounts
     let settlementQuery = {};
-    // For admin: filter settlements where admin is the user
     if (!isSuperadmin) {
       settlementQuery = { admin: userId };
+    } else if (turfId || city) {
+      const ownerIds = [...new Set(filteredTurfs.map(t => t.owner?.toString()).filter(Boolean))].map(id => new mongoose.Types.ObjectId(id));
+      settlementQuery = { admin: { $in: ownerIds } };
     }
     console.log('🔍 Settlement Query:', settlementQuery);
     
@@ -333,6 +335,8 @@ export const getPublicStats = async (req, res) => {
 // @access  Public
 export const getAppHomeData = async (req, res) => {
   try {
+    const { latitude, longitude } = req.query;
+
     const [
       totalTurfs,
       totalUsers,
@@ -353,7 +357,7 @@ export const getAppHomeData = async (req, res) => {
       Tournament.find({ approvalStatus: "approved", status: { $ne: "finished" } })
         .sort("startDate")
         .limit(6)
-        .select("title tournamentName sport type startDate endDate location registrationFee images"),
+        .select("title tournamentName sport type startDate endDate location registrationFee image gallery"),
       Master.find({ category: "sport", isActive: true }).select("name image")
     ]);
 
@@ -363,6 +367,43 @@ export const getAppHomeData = async (req, res) => {
       if (!img) return "";
       if (img.startsWith("http")) return img;
       return `${baseUrl}${img.startsWith("/") ? "" : "/"}${img}`;
+    };
+
+    const processTournamentImage = (img) => {
+      if (!img) return "";
+      // Only keep cloud/remote images (e.g. Cloudinary) and filter out local paths or localhost
+      if (img.startsWith("http") && !img.includes("localhost") && !img.includes("127.0.0.1")) {
+        return img;
+      }
+      return "";
+    };
+
+    const CITY_COORDS_FALLBACK = {
+      'bangalore': { lat: 12.9716, lng: 77.5946 },
+      'bengaluru': { lat: 12.9716, lng: 77.5946 },
+      'mumbai': { lat: 19.0760, lng: 72.8777 },
+      'delhi': { lat: 28.6139, lng: 77.2090 },
+      'new delhi': { lat: 28.6139, lng: 77.2090 },
+      'kolkata': { lat: 22.5726, lng: 88.3639 },
+      'chennai': { lat: 13.0827, lng: 80.2707 },
+      'hyderabad': { lat: 17.3850, lng: 78.4867 },
+      'pune': { lat: 18.5204, lng: 73.8567 },
+      'ahmedabad': { lat: 23.0225, lng: 72.5714 },
+      'jaipur': { lat: 26.9124, lng: 75.7873 },
+      'surat': { lat: 21.1702, lng: 72.8311 },
+      'lucknow': { lat: 26.8467, lng: 80.9462 },
+    };
+
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Radius of the earth in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     };
 
     const processedFeaturedTurfs = featuredTurfs.map(t => {
@@ -376,18 +417,52 @@ export const getAppHomeData = async (req, res) => {
         }
       }
 
+      let lat = t.location?.coordinates?.lat;
+      let lng = t.location?.coordinates?.lng;
+
+      if ((!lat || !lng) && t.location?.city) {
+        const cityKey = t.location.city.toLowerCase().trim();
+        const fallback = CITY_COORDS_FALLBACK[cityKey];
+        if (fallback) {
+          lat = fallback.lat;
+          lng = fallback.lng;
+        }
+      }
+
+      let distance = null;
+      if (latitude && longitude && lat && lng) {
+        distance = calculateDistance(Number(latitude), Number(longitude), Number(lat), Number(lng));
+      }
+
       return {
-        ...t._doc,
+        ...t.toObject ? t.toObject() : t._doc,
         featuredImage,
-        images: (t.images || []).map(processImage)
+        images: (t.images || []).map(processImage),
+        distance: distance !== null ? Number(distance.toFixed(1)) : null
       };
     });
 
-    const processedTournaments = upcomingTournaments.map(t => ({
-      ...t._doc,
-      images: (t.images || []).map(processImage),
-      featuredImage: t.images && t.images.length > 0 ? processImage(t.images[0]) : ""
-    }));
+    if (latitude && longitude) {
+      processedFeaturedTurfs.sort((a, b) => {
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    }
+
+    const processedTournaments = upcomingTournaments.map(t => {
+      const imgPath = t.image || "";
+      const processedImage = processTournamentImage(imgPath);
+      const processedGallery = (t.gallery || []).map(processTournamentImage).filter(Boolean);
+
+      return {
+        ...t.toObject ? t.toObject() : t._doc,
+        image: processedImage,
+        gallery: processedGallery,
+        featuredImage: processedImage,
+        images: processedImage ? [processedImage] : []
+      };
+    });
 
     const processedSports = sports.map(s => ({
       ...s._doc,

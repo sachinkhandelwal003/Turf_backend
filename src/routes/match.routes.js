@@ -5,7 +5,8 @@ import {
   getMatchById,
   joinMatch,
   getAdminMatches,
-  getMyHostedMatches
+  getMyHostedMatches,
+  cancelMatch
 } from "../controllers/match.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -20,5 +21,6 @@ router.get("/admin/all", authMiddleware, getAdminMatches);
 router.get("/host/my", authMiddleware, getMyHostedMatches);
 router.post("/", authMiddleware, createMatch);
 router.post("/:id/join", authMiddleware, joinMatch);
+router.patch("/:id/cancel", authMiddleware, cancelMatch);
 
 export default router;

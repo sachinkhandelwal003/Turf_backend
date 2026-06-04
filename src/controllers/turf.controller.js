@@ -20,6 +20,10 @@ export const createTurf = async (req, res) => {
   try {
     const body = { ...req.body };
 
+    if (body.interestToHost !== undefined) {
+      body.interestToHost = body.interestToHost === 'true' || body.interestToHost === true;
+    }
+
     // ==============================
     // PARSE JSON FIELDS FIRST
     // ==============================
@@ -195,6 +199,10 @@ export const updateTurf = async (req, res) => {
     }
 
     const body = { ...req.body };
+
+    if (body.interestToHost !== undefined) {
+      body.interestToHost = body.interestToHost === 'true' || body.interestToHost === true;
+    }
 
     // ==============================
     // PARSE & CLEANUP FIELDS
@@ -630,12 +638,17 @@ export const getTurfs = async (req, res) => {
       minPrice,
       maxPrice,
       rating,
+      interestToHost,
     } = req.query;
 
     let query = {
       isActive: true,
       status: "approved",
     };
+
+    if (interestToHost) {
+      query.interestToHost = interestToHost === "true";
+    }
 
     // Search location
     const searchLocation =

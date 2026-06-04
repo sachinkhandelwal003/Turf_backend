@@ -36,6 +36,14 @@ export const createMatch = async (req, res) => {
       });
     }
 
+    // Check if turf is interested in hosting matches
+    if (!turfExists.interestToHost) {
+      return res.status(400).json({
+        success: false,
+        message: "This venue is not interested in hosting matches"
+      });
+    }
+
     const match = await Match.create({
       host: req.user.id,
       turf,
@@ -263,3 +271,54 @@ export const getMyHostedMatches = async (req, res) => {
     });
   }
 };
+
+// @desc    Cancel a hosted match
+// @route   PATCH /api/matches/:id/cancel
+// @access  Private (Host/Admin/Superadmin)
+export const cancelMatch = async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id).populate("turf");
+
+    if (!match) {
+      return res.status(404).json({
+        success: false,
+        message: "Match not found"
+      });
+    }
+
+    // Authorization: User must be either the host, the owner (admin) of the turf, or a superadmin
+    const isHost = match.host.toString() === req.user.id;
+    const isTurfOwner = match.turf && match.turf.owner.toString() === req.user.id;
+    const isSuperadmin = req.user.role === "superadmin";
+
+    if (!isHost && !isTurfOwner && !isSuperadmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to cancel this match hosting"
+      });
+    }
+
+    if (match.status === "completed" || match.status === "cancelled hosting") {
+      return res.status(400).json({
+        success: false,
+        message: `Match hosting is already ${match.status}`
+      });
+    }
+
+    match.status = "cancelled hosting";
+    await match.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Match hosting cancelled successfully",
+      match
+    });
+  } catch (error) {
+    console.error("Cancel Match Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
+  }
+};
+

@@ -621,7 +621,7 @@ export const checkAvailability = async (req, res) => {
       turf: turfId,
       date: date,
       status: { $ne: "cancelled" }
-    }).select("startTime endTime courts slots status");
+    }).select("startTime endTime courts slots status sport");
 
     console.log(`Found ${bookings.length} active bookings`);
 
