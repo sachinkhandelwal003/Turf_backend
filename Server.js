@@ -4,6 +4,7 @@ import 'dotenv/config';
 // 2. Now we can safely import everything else
 import app from "./src/app.js";
 import { connectDB } from "./src/config/db.js";
+import mongoose from "mongoose";
 
 // Let's add a quick check to prove it works
 console.log("Checking MONGO_URI:", process.env.MONGO_URI ? "Found it!" : "Still undefined 😭");
@@ -46,3 +47,20 @@ io.on("connection", (socket) => {
     io.to(data.conversationId).emit("message_reacted", data);
   });
 });
+
+// Clean up pending bookings older than 2 minutes every minute
+setInterval(async () => {
+  try {
+    const Booking = mongoose.model("Booking");
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const result = await Booking.updateMany(
+      { status: "pending", createdAt: { $lt: twoMinutesAgo } },
+      { $set: { status: "cancelled", paymentStatus: "failed" } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[Cleanup] Cancelled ${result.modifiedCount} expired pending bookings`);
+    }
+  } catch (err) {
+    console.error("Pending bookings cleanup error:", err);
+  }
+}, 60 * 1000);

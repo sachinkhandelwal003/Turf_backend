@@ -21,11 +21,11 @@ export const register = async (req, res) => {
       return res.status(400).json({ msg: "Passwords do not match" });
     }
 
-    // --- 2. PRO LEVEL: Phone Validation (Indian Numbers Only) ---
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone)) {
+    // --- 2. PRO LEVEL: Phone Validation ---
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length < 10) {
       return res.status(400).json({ 
-        msg: "Invalid phone number format. Must be a valid 10-digit Indian number." 
+        msg: "Invalid phone number format. Must contain at least 10 digits." 
       });
     }
 
@@ -550,7 +550,7 @@ export const getAllUsers = async (req, res) => {
 export const updateUserRBAC = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { role, permissions, isActive, name, email, phone, password } = req.body;
+    const { role, permissions, isActive, name, email, phone, password, turfId } = req.body;
 
     const userToUpdate = await User.findById(userId);
     if (!userToUpdate) {
@@ -588,6 +588,22 @@ export const updateUserRBAC = async (req, res) => {
       { new: true }
     ).select("-password");
 
+    // Manage Turf ownership based on role and turfId
+    const targetRole = role || userToUpdate.role;
+    if (targetRole === 'admin') {
+      const Turf = mongoose.model("Turf");
+      // Clear previous ownerships for this user
+      await Turf.updateMany({ owner: userId }, { owner: null });
+      if (turfId) {
+        // Set new ownership
+        await Turf.findByIdAndUpdate(turfId, { owner: userId });
+      }
+    } else {
+      // If role is no longer admin, clear any turf ownership
+      const Turf = mongoose.model("Turf");
+      await Turf.updateMany({ owner: userId }, { owner: null });
+    }
+
     res.json({ success: true, msg: "User updated successfully", user: updatedUser });
   } catch (err) {
     console.error("Update User RBAC Error:", err);
@@ -598,7 +614,7 @@ export const updateUserRBAC = async (req, res) => {
 // CREATE USER (Admin/Superadmin only)
 export const createUser = async (req, res) => {
   try {
-    const { name, email, phone, password, role, permissions } = req.body;
+    const { name, email, phone, password, role, permissions, turfId } = req.body;
 
     // Basic Validation
     if (!name || !email || !phone || !password) {
@@ -630,12 +646,35 @@ export const createUser = async (req, res) => {
 
     const user = await User.create(userData);
 
+    // Fetch Turf details if turfId is provided
+    let assignedTurf = null;
+    if (turfId && user.role === "admin") {
+      const Turf = mongoose.model("Turf");
+      assignedTurf = await Turf.findByIdAndUpdate(turfId, { owner: user._id }, { new: true });
+    }
+
     // --- PRO LEVEL: Send Welcome Email for Admin Accounts ---
     if (user.role === "admin" || user.role === "superadmin") {
       const frontendUrl = process.env.FRONTEND_URL || "https://gameonindia.tech";
       const loginUrl = `${frontendUrl}/admin/login`;
 
       console.log(`Triggering welcome email for ${user.role}: ${user.email}`);
+
+      let turfDetailsHtml = "";
+      let turfDetailsText = "";
+
+      if (assignedTurf) {
+        turfDetailsHtml = `
+        <div class="cred-box" style="background-color: #f0f7ff; border: 1px solid #d0e7ff; padding: 20px; border-radius: 12px; margin: 20px 0;">
+          <h4 style="margin-top: 0; color: #0056b3;">Your Turf Details:</h4>
+          <p style="margin-bottom: 5px;"><strong>Venue Name:</strong> ${assignedTurf.name}</p>
+          <p style="margin-bottom: 5px;"><strong>Address:</strong> ${assignedTurf.location?.address || 'N/A'}, ${assignedTurf.location?.city || 'N/A'}</p>
+          <p style="margin-bottom: 5px;"><strong>Contact Phone:</strong> ${user.phone}</p>
+          <p style="margin-bottom: 5px;"><strong>Contact Email:</strong> ${user.email}</p>
+        </div>
+        `;
+        turfDetailsText = `\nYour Turf Details:\nVenue Name: ${assignedTurf.name}\nAddress: ${assignedTurf.location?.address || 'N/A'}, ${assignedTurf.location?.city || 'N/A'}\nContact Phone: ${user.phone}\nContact Email: ${user.email}\n`;
+      }
 
       const welcomeHtml = `
       <!DOCTYPE html>
@@ -663,11 +702,13 @@ export const createUser = async (req, res) => {
             <p>You can now manage your venue, bookings, and matches through our admin portal.</p>
             
             <div class="cred-box">
-              <h4 style="margin-top: 0;">Your Access Credentials:</h4>
+              <h4 style="margin-top: 0; color: #1abc60;">Your Access Credentials:</h4>
               <p style="margin-bottom: 5px;"><strong>Email:</strong> ${user.email}</p>
               <p style="margin-bottom: 5px;"><strong>Password:</strong> ${password}</p>
               <p style="font-size: 12px; color: #e67e22; margin-top: 10px;">*Please change your password after your first login for security.</p>
             </div>
+
+            ${turfDetailsHtml}
 
             <div class="button-container">
               <a href="${loginUrl}" class="button">Login to Admin Portal</a>
@@ -688,7 +729,7 @@ export const createUser = async (req, res) => {
         await sendEmail({
           email: user.email,
           subject: "Welcome to GameOn India - Admin Access Granted",
-          message: `Welcome ${user.name}! Your admin account has been created. Login with: ${user.email} / ${password}`,
+          message: `Welcome ${user.name}! Your admin account has been created.\n\nYour Access Credentials:\nEmail: ${user.email}\nPassword: ${password}\n${turfDetailsText}\nLogin at: ${loginUrl}`,
           html: welcomeHtml
         });
         console.log(`Welcome email sent successfully to: ${user.email}`);

@@ -111,11 +111,15 @@ export const createBooking = async (req, res) => {
     // Check for overlaps with existing bookings
     // A slot is unavailable if there's any booking on the same date and turf
     // where any of the selected courts are used AND the time ranges overlap.
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     const existingBookings = await Booking.find({
       turf: turfId,
       date,
-      status: { $ne: "cancelled" },
-      courts: { $in: courts }
+      courts: { $in: courts },
+      $or: [
+        { status: { $in: ["confirmed", "completed"] } },
+        { status: "pending", createdAt: { $gte: twoMinutesAgo } }
+      ]
     });
 
     for (const eb of existingBookings) {
@@ -617,10 +621,14 @@ export const checkAvailability = async (req, res) => {
 
     console.log(`Checking availability for Turf: ${turfId} on Date: ${date}`);
 
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     const bookings = await Booking.find({
       turf: turfId,
       date: date,
-      status: { $ne: "cancelled" }
+      $or: [
+        { status: { $in: ["confirmed", "completed"] } },
+        { status: "pending", createdAt: { $gte: twoMinutesAgo } }
+      ]
     }).select("startTime endTime courts slots status sport");
 
     console.log(`Found ${bookings.length} active bookings`);
@@ -762,11 +770,15 @@ export const getCheckoutDetails = async (req, res) => {
     }
 
     // 1. Check Availability
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     const existingBookings = await Booking.find({
       turf: turfId,
       date,
-      status: { $ne: "cancelled" },
-      courts: { $in: courts }
+      courts: { $in: courts },
+      $or: [
+        { status: { $in: ["confirmed", "completed"] } },
+        { status: "pending", createdAt: { $gte: twoMinutesAgo } }
+      ]
     });
 
     for (const eb of existingBookings) {
