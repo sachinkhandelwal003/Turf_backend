@@ -51,7 +51,8 @@ const turfSchema = new mongoose.Schema(
     },
 
     surfaceType: {
-      type: String,
+      type: [String],
+      default: [],
     },
 
     // Dynamic pricing by specific time slots

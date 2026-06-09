@@ -677,7 +677,7 @@ export const getAdminTurfBookings = async (req, res) => {
     // Include fields needed by admin panel (offline booking slot generation, court selection, etc.)
     // Only include approved turfs
     const myTurfs = await Turf.find({ owner: req.user.id, status: "approved" }).select(
-      "_id name sports courts operatingHours slotDuration availableSlots pricePerHour rates upiId status"
+      "_id name sports courts operatingHours slotDuration availableSlots pricePerHour rates upiId status sportConfigs"
     );
     const myTurfIds = myTurfs.map(t => t._id);
 
