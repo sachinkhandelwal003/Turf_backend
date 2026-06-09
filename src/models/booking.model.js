@@ -106,6 +106,10 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    expireAt: {
+      type: Date,
+      default: undefined,
+    }
   },
   { timestamps: true }
 );
@@ -113,6 +117,26 @@ const bookingSchema = new mongoose.Schema(
 // Prevent double booking for the same turf, date, and courts
 // We'll handle time range overlap in the controller since MongoDB unique index doesn't support range overlaps well
 bookingSchema.index({ turf: 1, date: 1, "courts": 1 });
+
+// TTL index to automatically delete pending bookings after 10 minutes
+bookingSchema.index(
+  { expireAt: 1 },
+  {
+    expireAfterSeconds: 0, // Expires at the exact time stored in expireAt
+    partialFilterExpression: { status: "pending" }
+  }
+);
+
+// Pre-save middleware to set expireAt if not already set
+bookingSchema.pre("save", function(next) {
+  if (this.status === "pending" && !this.expireAt) {
+    // If booking is pending, set expiration time to 10 minutes from now
+    this.expireAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  }
+  next();
+});
+
+// Also, let's make sure we also check the checkAvailability and createBooking to handle expired pending bookings!
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

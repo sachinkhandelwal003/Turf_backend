@@ -96,37 +96,48 @@ const turfSchema = new mongoose.Schema(
     ],
 
     // Working hours only
-    operatingHours: [
-      {
-        day: {
-          type: String,
-          enum: [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-          ],
-        },
+    operatingHours: {
+      type: [
+        {
+          day: {
+            type: String,
+            enum: [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+              "Sunday",
+            ],
+          },
 
-        open: {
-          type: String,
-          default: "06:00",
-        },
+          open: {
+            type: String,
+            default: "06:00",
+          },
 
-        close: {
-          type: String,
-          default: "22:00",
-        },
+          close: {
+            type: String,
+            default: "22:00",
+          },
 
-        isOpen: {
-          type: Boolean,
-          default: true,
+          isOpen: {
+            type: Boolean,
+            default: true,
+          },
         },
-      },
-    ],
+      ],
+      default: [
+        { day: "Monday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Tuesday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Wednesday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Thursday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Friday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Saturday", open: "06:00", close: "22:00", isOpen: true },
+        { day: "Sunday", open: "06:00", close: "22:00", isOpen: true },
+      ],
+    },
 
     // Courts
     courts: [

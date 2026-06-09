@@ -87,7 +87,10 @@ export const createBooking = async (req, res) => {
 
     const slotList = slots || (slot ? [slot] : []);
 
-    if (!turfId || !sport || !date || slotList.length === 0 || price === undefined || !courts || !courts.length) {
+    // For offline bookings, sport is optional; default to first sport of turf or "General"
+    const finalSport = sport || (turfId ? (await Turf.findById(turfId))?.sports?.[0] || "General" : "General");
+    
+    if (!turfId || !date || slotList.length === 0 || price === undefined || !courts || !courts.length) {
       return res.status(400).json({ error: "Please provide all required fields including courts" });
     }
 
@@ -204,7 +207,7 @@ export const createBooking = async (req, res) => {
     const bookingData = {
       turf: turfId,
       user: finalUserId,
-      sport,
+      sport: finalSport,
       date,
       startTime: minStart,
       endTime: maxEnd,
@@ -619,6 +622,15 @@ export const checkAvailability = async (req, res) => {
       return res.status(400).json({ error: "Turf ID and date are required" });
     }
 
+    // Check if turf is approved
+    const turf = await Turf.findById(turfId);
+    if (!turf) {
+      return res.status(404).json({ error: "Turf not found" });
+    }
+    if (turf.status !== "approved") {
+      return res.status(403).json({ error: "This venue is not approved yet" });
+    }
+
     console.log(`Checking availability for Turf: ${turfId} on Date: ${date}`);
 
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -663,8 +675,9 @@ export const getAdminTurfBookings = async (req, res) => {
 
     // 1. Find all turfs owned by this admin
     // Include fields needed by admin panel (offline booking slot generation, court selection, etc.)
-    const myTurfs = await Turf.find({ owner: req.user.id }).select(
-      "_id name sports courts operatingHours slotDuration availableSlots"
+    // Only include approved turfs
+    const myTurfs = await Turf.find({ owner: req.user.id, status: "approved" }).select(
+      "_id name sports courts operatingHours slotDuration availableSlots pricePerHour rates upiId status"
     );
     const myTurfIds = myTurfs.map(t => t._id);
 
@@ -767,6 +780,9 @@ export const getCheckoutDetails = async (req, res) => {
     const turf = await Turf.findById(turfId);
     if (!turf) {
       return res.status(404).json({ error: "Turf not found" });
+    }
+    if (turf.status !== "approved") {
+      return res.status(403).json({ error: "This venue is not approved yet" });
     }
 
     // 1. Check Availability
