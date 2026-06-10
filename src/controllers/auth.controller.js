@@ -38,9 +38,13 @@ export const register = async (req, res) => {
     }
 
     // 4. Duplicacy Check (Email AND Phone check dono lagaya hai)
-    const exist = await User.findOne({ $or: [{ email }, { phone }] });
-    if (exist) {
-      return res.status(400).json({ msg: "User with this email or phone number already exists" });
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ msg: "Email already registered. Please use a different email or login." });
+    }
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ msg: "Phone number already registered. Please use a different number or login." });
     }
 
     // 5. Generate verification token
