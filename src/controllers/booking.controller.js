@@ -3,6 +3,7 @@ import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
 import Review from "../models/review.model.js";
 import Settings from "../models/settings.model.js";
+import { sendPushNotification } from "../utils/firebase.js";
 
 const getTodayParts = () => {
   const now = new Date();
@@ -70,6 +71,39 @@ const awardCoins = async (userId, bookingId) => {
     await booking.save();
   } catch (err) {
     console.error("Award Coins Error:", err);
+  }
+};
+
+// Helper to send booking confirmation push notifications
+const sendBookingConfirmationNotifications = async (bookingId) => {
+  try {
+    const booking = await Booking.findById(bookingId).populate("turf").populate("user");
+    if (!booking) return;
+
+    // Notify User
+    if (booking.user && booking.user.fcmToken) {
+      await sendPushNotification(
+        booking.user.fcmToken,
+        "Slot Booked! 🗓️",
+        `Slot booked! Pay ₹${booking.balanceAmount} to ground owner before slot starts at ${booking.startTime}.`,
+        { bookingId: booking._id.toString(), type: "booking_confirmed" }
+      );
+    }
+
+    // Notify Owner
+    if (booking.turf && booking.turf.owner) {
+      const owner = await User.findById(booking.turf.owner);
+      if (owner && owner.fcmToken) {
+        await sendPushNotification(
+          owner.fcmToken,
+          "New Booking! ⚽",
+          `New booking by ${booking.user?.name || "User"}. Balance ₹${booking.balanceAmount} due at venue before ${booking.startTime}.`,
+          { bookingId: booking._id.toString(), type: "new_booking" }
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Error sending booking confirmation notifications:", err);
   }
 };
 
@@ -240,6 +274,7 @@ export const createBooking = async (req, res) => {
     // If offline booking (confirmed), award coins
     if (finalIsOffline) {
       await awardCoins(finalUserId, booking._id);
+      sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
     }
 
     res.status(201).json({
@@ -379,6 +414,7 @@ export const processPayment = async (req, res) => {
     // Award coins for each booking
     for (const booking of bookings) {
       await awardCoins(booking.user, booking._id);
+      sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
     }
 
     res.json({
@@ -493,6 +529,9 @@ export const updateBookingStatus = async (req, res) => {
     // Award coins if status is confirmed or completed
     if (["confirmed", "completed"].includes(status)) {
       await awardCoins(booking.user, booking._id);
+      if (status === "confirmed") {
+        sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
+      }
     }
 
     res.json({

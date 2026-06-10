@@ -109,6 +109,18 @@ const bookingSchema = new mongoose.Schema(
     expireAt: {
       type: Date,
       default: undefined,
+    },
+    notified2HrBefore: {
+      type: Boolean,
+      default: false,
+    },
+    notified1HrBefore: {
+      type: Boolean,
+      default: false,
+    },
+    notifiedAtStart: {
+      type: Boolean,
+      default: false,
     }
   },
   { timestamps: true }

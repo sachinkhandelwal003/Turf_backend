@@ -5,6 +5,7 @@ import 'dotenv/config';
 import app from "./src/app.js";
 import { connectDB } from "./src/config/db.js";
 import mongoose from "mongoose";
+import { runNotificationScheduler } from "./src/utils/scheduler.js";
 
 // Let's add a quick check to prove it works
 console.log("Checking MONGO_URI:", process.env.MONGO_URI ? "Found it!" : "Still undefined 😭");
@@ -62,5 +63,14 @@ setInterval(async () => {
     }
   } catch (err) {
     console.error("Pending bookings cleanup error:", err);
+  }
+}, 60 * 1000);
+
+// Run the notification scheduler every minute
+setInterval(async () => {
+  try {
+    await runNotificationScheduler();
+  } catch (err) {
+    console.error("Notification scheduler interval error:", err);
   }
 }, 60 * 1000);

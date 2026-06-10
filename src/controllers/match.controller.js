@@ -1,5 +1,7 @@
 import Match from "../models/match.model.js";
 import Turf from "../models/turf.model.js";
+import User from "../models/auth/user.model.js";
+import { sendMulticastNotification } from "../utils/firebase.js";
 
 // @desc    Create a new match for hosting
 // @route   POST /api/matches
@@ -58,6 +60,45 @@ export const createMatch = async (req, res) => {
       isPrivate,
       joinedPlayers: [{ user: req.user.id, status: "confirmed" }]
     });
+
+    // 5km Geo-Radius Notifications for nearby users
+    try {
+      if (turfExists.location && turfExists.location.coordinates && 
+          typeof turfExists.location.coordinates.lat === 'number' && 
+          typeof turfExists.location.coordinates.lng === 'number') {
+        
+        const lat = turfExists.location.coordinates.lat;
+        const lng = turfExists.location.coordinates.lng;
+
+        // Find users within 5km (5000 meters) of the turf location
+        const nearbyUsers = await User.find({
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: [lng, lat]
+              },
+              $maxDistance: 5000
+            }
+          },
+          fcmToken: { $ne: null },
+          _id: { $ne: req.user.id } // Don't notify the match creator
+        }).select("fcmToken");
+
+        const tokens = nearbyUsers.map(u => u.fcmToken).filter(Boolean);
+
+        if (tokens.length > 0) {
+          sendMulticastNotification(
+            tokens,
+            "New Match Hosted Nearby! 🏆",
+            `A new ${sport} match "${title}" has been hosted within 5km at ${turfExists.name}. Join now!`,
+            { matchId: match._id.toString(), type: "new_match" }
+          ).catch(err => console.error("Error sending match notifications:", err));
+        }
+      }
+    } catch (geoError) {
+      console.error("Geo-radius notification error:", geoError);
+    }
 
     res.status(201).json({
       success: true,

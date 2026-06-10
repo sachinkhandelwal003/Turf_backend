@@ -55,12 +55,41 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      default: null,
+    },
+    verificationTokenExpires: {
+      type: Date,
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    fcmToken: {
+      type: String,
+      default: null,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+    },
   },
   { timestamps: true }
 );
+
+userSchema.index({ location: "2dsphere" });
 
 export default mongoose.model("User", userSchema);
