@@ -53,14 +53,25 @@ export const register = async (req, res) => {
     // 6. Hashing & Creating User
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    // Skip email verification for admins/super admins
+    const isAdminOrSuperAdmin = false; // Regular users only for public register
+    
+    const userData = {
       name,
       email,
       phone,
       password: hashedPassword,
-      verificationToken: hashedVerificationToken,
-      verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-    });
+    };
+
+    // Only require email verification for regular users
+    if (!isAdminOrSuperAdmin) {
+      userData.verificationToken = hashedVerificationToken;
+      userData.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    } else {
+      userData.isVerified = true;
+    }
+
+    const user = await User.create(userData);
 
     // 7. Send verification email
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -215,8 +226,8 @@ export const login = async (req, res) => {
       return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
     }
 
-    // check if email is verified
-    if (!user.isVerified) {
+    // check if email is verified - skip for admins and super admins
+    if (!user.isVerified && user.role !== 'admin' && user.role !== 'super_admin') {
       return res.status(403).json({ 
         success: false, 
         msg: "Please verify your email address before logging in. Check your inbox for verification link." 
@@ -752,14 +763,16 @@ export const createUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const userRole = role || "user";
     const userData = {
       name,
       email: cleanEmail,
       phone,
       password: hashedPassword,
-      role: role || "user",
+      role: userRole,
       permissions: permissions ? (typeof permissions === 'string' ? JSON.parse(permissions) : permissions) : [],
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      isVerified: userRole === 'admin' || userRole === 'super_admin' // Auto-verify admins
     };
 
     if (req.file) {
