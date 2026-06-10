@@ -163,10 +163,9 @@ export const verifyEmail = async (req, res) => {
       .update(token)
       .digest("hex");
 
-    // Find user with matching token that hasn't expired
+    // Find user with matching token (without expiry check first)
     const user = await User.findOne({
       verificationToken: hashedToken,
-      verificationTokenExpires: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -176,9 +175,40 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // Mark email as verified
+    // If user is already verified (e.g. from React double-mount or email scan), return success directly
+    if (user.isVerified) {
+      // Generate token for immediate login
+      const authToken = jwt.sign(
+        {
+          id: user._id,
+          role: user.role,
+          permissions: user.permissions || [],
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      return res.status(200).json({
+        success: true,
+        msg: "Email verified successfully!",
+        token: authToken,
+        user: userResponse,
+      });
+    }
+
+    // If not verified yet, check if token has expired
+    if (user.verificationTokenExpires && user.verificationTokenExpires < Date.now()) {
+      return res.status(400).json({ 
+        success: false, 
+        msg: "Verification token has expired." 
+      });
+    }
+
+    // Mark email as verified, keep token to handle duplicate requests but clear expiry
     user.isVerified = true;
-    user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
 
