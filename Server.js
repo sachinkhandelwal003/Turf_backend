@@ -5,7 +5,7 @@ import 'dotenv/config';
 import app from "./src/app.js";
 import { connectDB } from "./src/config/db.js";
 import mongoose from "mongoose";
-import { runNotificationScheduler } from "./src/utils/scheduler.js";
+import startReminderScheduler from "./src/utils/scheduler.js";
 
 // Let's add a quick check to prove it works
 console.log("Checking MONGO_URI:", process.env.MONGO_URI ? "Found it!" : "Still undefined 😭");
@@ -17,6 +17,9 @@ connectDB();
 const port = process.env.PORT || 5001;
 const server = app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  
+  // 5. Start reminder scheduler
+  startReminderScheduler();
 });
 
 import { Server } from "socket.io";
@@ -66,11 +69,3 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// Run the notification scheduler every minute
-setInterval(async () => {
-  try {
-    await runNotificationScheduler();
-  } catch (err) {
-    console.error("Notification scheduler interval error:", err);
-  }
-}, 60 * 1000);

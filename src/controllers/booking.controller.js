@@ -3,6 +3,8 @@ import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
 import Review from "../models/review.model.js";
 import Settings from "../models/settings.model.js";
+import { sendPushAndSave } from "../utils/firebase.js";
+import { sendEmail } from "../utils/email.js";
 
 const getTodayParts = () => {
   const now = new Date();
@@ -379,6 +381,60 @@ export const processPayment = async (req, res) => {
     // Award coins for each booking
     for (const booking of bookings) {
       await awardCoins(booking.user, booking._id);
+      
+      // 🔔 Send Booking Confirmed Notifications
+      // First, populate user and turf details
+      const populatedBooking = await Booking.findById(booking._id)
+        .populate("user", "name email phone fcmToken")
+        .populate("turf", "name location owner");
+      
+      if (populatedBooking) {
+        // 🔹 Send to USER
+        if (populatedBooking.user.fcmToken) {
+          sendPushAndSave(
+            populatedBooking.user._id,
+            populatedBooking.user.fcmToken,
+            "Booking Confirmed! 🎉",
+            `Your ${populatedBooking.turf.name} booking is confirmed for ${populatedBooking.date} at ${populatedBooking.startTime}.`,
+            "booking_confirmed",
+            { bookingId: populatedBooking._id.toString() }
+          ).catch(err => console.error("User booking notification error:", err));
+        }
+        
+        // Send email to user
+        if (populatedBooking.user.email) {
+          sendEmail({
+            email: populatedBooking.user.email,
+            subject: "Your Booking is Confirmed!",
+            message: `Hi ${populatedBooking.user.name},\n\nYour booking at ${populatedBooking.turf.name} is confirmed.\nDate: ${populatedBooking.date}\nTime: ${populatedBooking.startTime} - ${populatedBooking.endTime}\n\nThank you!`,
+            html: `<p>Hi ${populatedBooking.user.name},</p><p>Your booking at <strong>${populatedBooking.turf.name}</strong> is confirmed.</p><p>Date: ${populatedBooking.date}<br>Time: ${populatedBooking.startTime} - ${populatedBooking.endTime}</p><p>Thank you!</p>`
+          }).catch(err => console.error("User booking email error:", err));
+        }
+        
+        // 🔹 Send to TURF OWNER
+        if (populatedBooking.turf.owner) {
+          const owner = await User.findById(populatedBooking.turf.owner);
+          if (owner?.fcmToken) {
+            sendPushAndSave(
+              owner._id,
+              owner.fcmToken,
+              "New Booking! 🏟️",
+              `${populatedBooking.user.name} has booked ${populatedBooking.turf.name} for ${populatedBooking.date} at ${populatedBooking.startTime}.`,
+              "new_booking",
+              { bookingId: populatedBooking._id.toString() }
+            ).catch(err => console.error("Owner booking notification error:", err));
+          }
+          
+          if (owner?.email) {
+            sendEmail({
+              email: owner.email,
+              subject: "New Booking Received!",
+              message: `Hi ${owner.name},\n\n${populatedBooking.user.name} has booked your turf ${populatedBooking.turf.name} for ${populatedBooking.date} at ${populatedBooking.startTime}.`,
+              html: `<p>Hi ${owner.name},</p><p><strong>${populatedBooking.user.name}</strong> has booked your turf <strong>${populatedBooking.turf.name}</strong>.</p><p>Date: ${populatedBooking.date}<br>Time: ${populatedBooking.startTime} - ${populatedBooking.endTime}</p>`
+            }).catch(err => console.error("Owner booking email error:", err));
+          }
+        }
+      }
     }
 
     res.json({

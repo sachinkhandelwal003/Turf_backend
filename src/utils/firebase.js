@@ -3,6 +3,7 @@ import { getMessaging } from "firebase-admin/messaging";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import Notification from "../models/notification.model.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,55 @@ try {
 } catch (error) {
   console.error("Failed to initialize Firebase Admin SDK:", error);
 }
+
+/**
+ * Save notification to database
+ * @param {string} userId - MongoDB user ID
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body
+ * @param {string} type - Notification type
+ * @param {object} [data] - Optional metadata
+ */
+export const saveNotification = async (userId, title, body, type, data = {}) => {
+  try {
+    await Notification.create({
+      user: userId,
+      title,
+      body,
+      type,
+      data,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving notification to DB:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send push notification to a single device AND save to DB
+ * @param {string} userId - MongoDB user ID
+ * @param {string} token - FCM Device registration token
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body
+ * @param {string} type - Notification type
+ * @param {object} [data] - Optional metadata payload (must be string-string key-value pairs)
+ */
+export const sendPushAndSave = async (userId, token, title, body, type, data = {}) => {
+  // 1. Save to DB first
+  await saveNotification(userId, title, body, type, data);
+  
+  // 2. Send push notification (if token exists)
+  if (token) {
+    try {
+      await sendPushNotification(token, title, body, data);
+    } catch (err) {
+      console.error("Push notification failed, but saved to DB:", err);
+    }
+  }
+  
+  return { success: true };
+};
 
 /**
  * Send push notification to a single device

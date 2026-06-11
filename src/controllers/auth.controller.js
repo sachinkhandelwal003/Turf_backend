@@ -8,11 +8,12 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import mongoose from "mongoose";
 import { sendEmail } from "../utils/email.js";
+import { sendPushAndSave } from "../utils/firebase.js";
 
 // REGISTER
 export const register = async (req, res) => {
   try {
-    const { name, email, phone, password, confirmPassword } = req.body;
+    const { name, email, phone, password, confirmPassword, fcmToken } = req.body;
 
     // 1. Basic Validation
     if (!name || !email || !phone || !password || !confirmPassword) {
@@ -60,6 +61,7 @@ export const register = async (req, res) => {
       isVerified: false,
       verificationToken,
       verificationExpires,
+      fcmToken: fcmToken || null,
     });
 
     // Send verification email
@@ -124,6 +126,17 @@ export const register = async (req, res) => {
     } catch (emailErr) {
       console.error("Email Send Error:", emailErr);
       // If email fails, we can still proceed but inform the user?
+    }
+
+    // Send welcome push notification
+    if (user.fcmToken) {
+      sendPushAndSave(
+        user._id,
+        user.fcmToken,
+        "Welcome to GameOn India 🎉",
+        `Hi ${name}! Thanks for signing up. Start booking turfs and joining matches now!`,
+        "welcome"
+      ).catch(err => console.error("Welcome notification error:", err));
     }
 
     // --- 6. PRO LEVEL Security: Response mein password mat bhejo ---
@@ -194,7 +207,7 @@ export const verifyEmail = async (req, res) => {
 // LOGIN
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, fcmToken } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ success: false, msg: "Email and password are required" });
@@ -218,6 +231,23 @@ export const login = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ success: false, msg: "Invalid email or password" });
     }
+
+    // Save FCM token if provided
+    if (fcmToken) {
+      user.fcmToken = fcmToken;
+      await user.save();
+    }
+
+    // Send login alert notification
+        if (user.fcmToken) {
+          sendPushAndSave(
+            user._id,
+            user.fcmToken,
+            "New Login Detected 🔐",
+            `Hi ${user.name}, your account was just logged into. If this wasn't you, please change your password immediately.`,
+            "login_alert"
+          ).catch(err => console.error("Login alert notification error:", err));
+        }
 
     // token
     const token = jwt.sign(
@@ -1005,7 +1035,7 @@ export const deleteRole = async (req, res) => {
 // GOOGLE LOGIN
 export const googleLogin = async (req, res) => {
   try {
-    const { tokenId } = req.body;
+    const { tokenId, fcmToken } = req.body;
 
     if (!tokenId) {
       return res.status(400).json({ success: false, msg: "Token ID is required" });
@@ -1033,8 +1063,12 @@ export const googleLogin = async (req, res) => {
       // If user exists but doesn't have googleId, update it
       if (!user.googleId) {
         user.googleId = googleId;
-        await user.save();
       }
+      // Save FCM token if provided
+      if (fcmToken) {
+        user.fcmToken = fcmToken;
+      }
+      await user.save();
     } else {
       // Create new user
       user = await User.create({
@@ -1043,12 +1077,36 @@ export const googleLogin = async (req, res) => {
         googleId,
         profilePhoto: picture || "",
         isVerified: true,
+        fcmToken: fcmToken || null,
       });
     }
 
     // Check if user is active
     if (!user.isActive) {
       return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
+    }
+
+    // Send notification
+    if (user.fcmToken) {
+      // Check if user was just created (new user)
+      const isNewUser = user.createdAt > new Date(Date.now() - 5000); // Within last 5 seconds
+      if (isNewUser) {
+        sendPushAndSave(
+          user._id,
+          user.fcmToken,
+          "Welcome to GameOn India 🎉",
+          `Hi ${user.name}! Thanks for signing up with Google. Start booking turfs and joining matches now!`,
+          "welcome"
+        ).catch(err => console.error("Welcome notification error:", err));
+      } else {
+        sendPushAndSave(
+          user._id,
+          user.fcmToken,
+          "New Login Detected 🔐",
+          `Hi ${user.name}, your account was just logged into with Google. If this wasn't you, please change your password immediately.`,
+          "login_alert"
+        ).catch(err => console.error("Login alert notification error:", err));
+      }
     }
 
     // Generate token

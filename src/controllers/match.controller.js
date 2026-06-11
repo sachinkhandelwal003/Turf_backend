@@ -1,7 +1,7 @@
 import Match from "../models/match.model.js";
 import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
-import { sendMulticastNotification } from "../utils/firebase.js";
+import { sendMulticastNotification, saveNotification } from "../utils/firebase.js";
 
 // @desc    Create a new match for hosting
 // @route   POST /api/matches
@@ -83,9 +83,20 @@ export const createMatch = async (req, res) => {
           },
           fcmToken: { $ne: null },
           _id: { $ne: req.user.id } // Don't notify the match creator
-        }).select("fcmToken");
+        }).select("_id fcmToken");
 
         const tokens = nearbyUsers.map(u => u.fcmToken).filter(Boolean);
+
+        // Save notifications to DB for all nearby users
+        for (const user of nearbyUsers) {
+          await saveNotification(
+            user._id,
+            "New Match Hosted Nearby! 🏆",
+            `A new ${sport} match "${title}" has been hosted within 5km at ${turfExists.name}. Join now!`,
+            "new_match",
+            { matchId: match._id.toString() }
+          ).catch(err => console.error("Error saving match notification:", err));
+        }
 
         if (tokens.length > 0) {
           sendMulticastNotification(

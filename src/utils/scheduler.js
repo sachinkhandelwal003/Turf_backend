@@ -1,94 +1,142 @@
-import mongoose from "mongoose";
-import { sendPushNotification } from "./firebase.js";
+import cron from 'node-cron';
+import Booking from '../models/booking.model.js';
+import User from '../models/auth/user.model.js';
+import Turf from '../models/turf.model.js';
+import { sendPushAndSave } from './firebase.js';
+import { sendEmail } from './email.js';
 
-export const runNotificationScheduler = async () => {
+// 🔔 Function to send booking reminders
+const sendBookingReminders = async () => {
   try {
-    const Booking = mongoose.model("Booking");
-    const User = mongoose.model("User");
-
+    console.log('⏰ Checking for upcoming bookings to send reminders...');
+    
+    // Get current time and calculate reminder windows
     const now = new Date();
-    const nowMs = now.getTime();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM
 
-    // Helper to format today as YYYY-MM-DD
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+    // Parse HH:MM to total minutes
+    const timeToMinutes = (timeStr) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
     };
 
-    const todayStr = formatDate(now);
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = formatDate(tomorrow);
+    const currentMinutes = timeToMinutes(currentTime);
 
-    // Find confirmed bookings for today and tomorrow that haven't been notified yet
+    // Find all confirmed bookings for today and future
     const bookings = await Booking.find({
-      status: "confirmed",
-      date: { $in: [todayStr, tomorrowStr] },
-      $or: [
-        { notified2HrBefore: false },
-        { notified1HrBefore: false },
-        { notifiedAtStart: false }
-      ]
-    }).populate("turf").populate("user");
+      status: 'confirmed',
+      date: { $gte: today }
+    }).populate('user', 'name email fcmToken')
+      .populate('turf', 'name owner');
 
     for (const booking of bookings) {
-      // Parse booking start time
-      // booking.date is YYYY-MM-DD, booking.startTime is HH:mm
-      const bookingStartStr = `${booking.date}T${booking.startTime}:00`;
-      const bookingStart = new Date(bookingStartStr);
-      const bookingStartMs = bookingStart.getTime();
+      if (!booking.user || !booking.turf) continue;
 
-      // Time difference in minutes
-      const diffMins = (bookingStartMs - nowMs) / (1000 * 60);
-
-      // Case 1: 2 hours before slot reminder (approx 105 to 125 minutes before)
-      if (diffMins > 0 && diffMins <= 120 && diffMins > 105 && !booking.notified2HrBefore) {
-        if (booking.user && booking.user.fcmToken) {
-          await sendPushNotification(
-            booking.user.fcmToken,
-            "Upcoming Match Reminder! ⚽",
-            `Reminder: ₹${booking.balanceAmount} balance is due at ${booking.turf?.name || "the venue"} today at ${booking.startTime}.`,
-            { bookingId: booking._id.toString(), type: "reminder_2hr" }
-          );
-        }
-        booking.notified2HrBefore = true;
-        await booking.save();
+      const bookingDate = new Date(booking.date);
+      const bookingDateStr = bookingDate.toISOString().split('T')[0];
+      const startMinutes = timeToMinutes(booking.startTime);
+      
+      // Calculate time difference in minutes
+      let diffMinutes = 0;
+      
+      if (bookingDateStr === today) {
+        diffMinutes = startMinutes - currentMinutes;
+      } else {
+        // For future dates, calculate total minutes difference
+        const diffMs = bookingDate - now;
+        diffMinutes = Math.floor(diffMs / (1000 * 60)) + startMinutes;
       }
 
-      // Case 2: 1 hour before slot reminder (approx 45 to 65 minutes before)
-      if (diffMins > 0 && diffMins <= 60 && diffMins > 45 && !booking.notified1HrBefore) {
-        if (booking.user && booking.user.fcmToken) {
-          await sendPushNotification(
-            booking.user.fcmToken,
-            "Last Reminder! ⏰",
-            `Last reminder: pay ₹${booking.balanceAmount} to owner before play starts.`,
-            { bookingId: booking._id.toString(), type: "reminder_1hr" }
-          );
-        }
-        booking.notified1HrBefore = true;
-        await booking.save();
-      }
-
-      // Case 3: At slot start reminder (between -15 and 0 minutes from start)
-      if (diffMins <= 0 && diffMins >= -15 && !booking.notifiedAtStart) {
-        if (booking.turf && booking.turf.owner) {
-          const owner = await User.findById(booking.turf.owner);
-          if (owner && owner.fcmToken) {
-            await sendPushNotification(
-              owner.fcmToken,
-              "Slot Started! Check Status 🏟️",
-              `Did ${booking.user?.name || "User"} arrive and pay balance? Mark Balance Received or No-Show.`,
-              { bookingId: booking._id.toString(), type: "slot_start" }
-            );
+      // 🔹 2 HOUR REMINDER
+      if (diffMinutes >= 118 && diffMinutes <= 122) { // ±2 minutes window
+        if (!booking.reminderSent2hr) {
+          if (booking.user.fcmToken) {
+            sendPushAndSave(
+              booking.user._id,
+              booking.user.fcmToken,
+              'Reminder: Your Booking is in 2 Hours! ⏰',
+              `Don't forget your ${booking.turf.name} booking at ${booking.startTime}!`,
+              'booking_reminder',
+              { bookingId: booking._id.toString(), reminderType: '2hr' }
+            ).catch(err => console.error('2hr reminder error:', err));
           }
+
+          if (booking.user.email) {
+            sendEmail({
+              email: booking.user.email,
+              subject: 'Reminder: Your Booking is in 2 Hours!',
+              message: `Hi ${booking.user.name},\n\nJust a reminder that your booking at ${booking.turf.name} starts in 2 hours (${booking.startTime}).`,
+              html: `<p>Hi ${booking.user.name},</p><p>Just a reminder that your booking at <strong>${booking.turf.name}</strong> starts in 2 hours (${booking.startTime}).</p>`
+            }).catch(err => console.error('2hr email error:', err));
+          }
+
+          booking.reminderSent2hr = true;
+          await booking.save();
+          console.log(`✅ Sent 2hr reminder for booking ${booking._id}`);
         }
-        booking.notifiedAtStart = true;
-        await booking.save();
+      }
+
+      // 🔹 1 HOUR REMINDER
+      if (diffMinutes >= 58 && diffMinutes <= 62) {
+        if (!booking.reminderSent1hr) {
+          if (booking.user.fcmToken) {
+            sendPushAndSave(
+              booking.user._id,
+              booking.user.fcmToken,
+              'Reminder: Your Booking is in 1 Hour! ⏰',
+              `Your ${booking.turf.name} booking starts soon at ${booking.startTime}!`,
+              'booking_reminder',
+              { bookingId: booking._id.toString(), reminderType: '1hr' }
+            ).catch(err => console.error('1hr reminder error:', err));
+          }
+
+          if (booking.user.email) {
+            sendEmail({
+              email: booking.user.email,
+              subject: 'Reminder: Your Booking is in 1 Hour!',
+              message: `Hi ${booking.user.name},\n\nReminder: your booking at ${booking.turf.name} starts in 1 hour (${booking.startTime}).`,
+              html: `<p>Hi ${booking.user.name},</p><p>Reminder: your booking at <strong>${booking.turf.name}</strong> starts in 1 hour (${booking.startTime}).</p>`
+            }).catch(err => console.error('1hr email error:', err));
+          }
+
+          booking.reminderSent1hr = true;
+          await booking.save();
+          console.log(`✅ Sent 1hr reminder for booking ${booking._id}`);
+        }
+      }
+
+      // 🔹 SLOT START REMINDER (FOR OWNER)
+      if (diffMinutes >= -2 && diffMinutes <= 2) {
+        if (!booking.ownerReminderSent) {
+          const owner = await User.findById(booking.turf.owner);
+          if (owner?.fcmToken) {
+            sendPushAndSave(
+              owner._id,
+              owner.fcmToken,
+              'Booking Starting Now! 🏟️',
+              `${booking.user.name}'s booking at ${booking.turf.name} is starting now!`,
+              'booking_start',
+              { bookingId: booking._id.toString() }
+            ).catch(err => console.error('Owner start reminder error:', err));
+          }
+
+          booking.ownerReminderSent = true;
+          await booking.save();
+          console.log(`✅ Sent owner start reminder for booking ${booking._id}`);
+        }
       }
     }
+
   } catch (err) {
-    console.error("Notification scheduler error:", err);
+    console.error('❌ Error in reminder scheduler:', err);
   }
 };
+
+// 🕒 Start scheduler - runs every minute
+const startReminderScheduler = () => {
+  cron.schedule('* * * * *', sendBookingReminders);
+  console.log('✅ Reminder scheduler started!');
+};
+
+export default startReminderScheduler;
