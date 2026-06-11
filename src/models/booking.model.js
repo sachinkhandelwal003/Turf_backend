@@ -140,12 +140,11 @@ bookingSchema.index(
 );
 
 // Pre-save middleware to set expireAt if not already set
-bookingSchema.pre("save", function(next) {
+bookingSchema.pre("save", function() {
   if (this.status === "pending" && !this.expireAt) {
     // If booking is pending, set expiration time to 10 minutes from now
     this.expireAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   }
-  next();
 });
 
 // Also, let's make sure we also check the checkAvailability and createBooking to handle expired pending bookings!

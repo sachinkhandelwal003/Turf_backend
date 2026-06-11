@@ -70,7 +70,7 @@ export const register = async (req, res) => {
     // Only require email verification for regular users
     if (!isAdminOrSuperAdmin) {
       userData.verificationToken = hashedVerificationToken;
-      userData.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      userData.verificationTokenExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
     } else {
       userData.isVerified = true;
     }
@@ -81,7 +81,7 @@ export const register = async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
-    const message = `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nThis link is valid for 24 hours.\n\nIf you didn't request this, please ignore this email.`;
+    const message = `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nThis link is valid for 30 minutes.\n\nIf you didn't request this, please ignore this email.`;
 
     const html = `
     <!DOCTYPE html>
@@ -111,7 +111,7 @@ export const register = async (req, res) => {
           </div>
           <p>If the button above doesn't work, copy and paste this link into your browser:</p>
           <p style="word-break: break-all; font-size: 13px; color: #1abc60;">${verificationUrl}</p>
-          <p>This link is valid for <strong>24 hours</strong>.</p>
+          <p>This link is valid for <strong>30 minutes</strong>.</p>
           <p>If you didn't request this, please ignore this email.</p>
         </div>
         <div class="footer">
