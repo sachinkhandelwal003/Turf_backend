@@ -23,9 +23,9 @@ export const register = async (req, res) => {
 
     // --- 2. PRO LEVEL: Phone Validation ---
     const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length !== 10 || !/^[6-9]/.test(digitsOnly)) {
+    if (digitsOnly.length < 10) {
       return res.status(400).json({ 
-        msg: "Invalid phone number format. Must be exactly 10-digit Indian mobile number starting with 6-9." 
+        msg: "Invalid phone number format. Must contain at least 10 digits." 
       });
     }
 
@@ -38,182 +38,27 @@ export const register = async (req, res) => {
     }
 
     // 4. Duplicacy Check (Email AND Phone check dono lagaya hai)
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ msg: "Email already registered. Please use a different email or login." });
-    }
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) {
-      return res.status(400).json({ msg: "Phone number already registered. Please use a different number or login." });
+    const exist = await User.findOne({ $or: [{ email }, { phone }] });
+    if (exist) {
+      return res.status(400).json({ msg: "User with this email or phone number already exists" });
     }
 
-    // 5. Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const hashedVerificationToken = crypto
-      .createHash("sha256")
-      .update(verificationToken)
-      .digest("hex");
-
-    // 6. Hashing & Creating User
+    // 5. Hashing & Creating User
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Skip email verification for admins/super admins
-    const isAdminOrSuperAdmin = false; // Regular users only for public register
-    
-    const userData = {
+    const user = await User.create({
       name,
       email,
       phone,
       password: hashedPassword,
-    };
+    });
 
-    // Only require email verification for regular users
-    if (!isAdminOrSuperAdmin) {
-      userData.verificationToken = hashedVerificationToken;
-      userData.verificationTokenExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
-    } else {
-      userData.isVerified = true;
-    }
-
-    const user = await User.create(userData);
-
-    // 7. Send verification email
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
-
-    const message = `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nThis link is valid for 30 minutes.\n\nIf you didn't request this, please ignore this email.`;
-
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
-        .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #1abc60; }
-        .logo { font-size: 28px; font-weight: bold; color: #1abc60; text-decoration: none; }
-        .content { padding: 30px 0; line-height: 1.6; }
-        .button-container { text-align: center; margin: 30px 0; }
-        .button { background-color: #1abc60; color: white !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(26, 188, 96, 0.2); }
-        .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #eee; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <a href="${frontendUrl}" class="logo">GameOn India</a>
-        </div>
-        <div class="content">
-          <h2>Verify Your Email</h2>
-          <p>Hi ${name},</p>
-          <p>Thank you for signing up! Please verify your email address by clicking the button below:</p>
-          <div class="button-container">
-            <a href="${verificationUrl}" class="button">Verify Email</a>
-          </div>
-          <p>If the button above doesn't work, copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; font-size: 13px; color: #1abc60;">${verificationUrl}</p>
-          <p>This link is valid for <strong>30 minutes</strong>.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-        <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} GameOn India. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-    `;
-
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: "GameOn India - Verify Your Email",
-        message,
-        html
-      });
-    } catch (emailErr) {
-      console.error("Verification email send error:", emailErr);
-    }
-
-    // --- 8. PRO LEVEL Security: Response mein password mat bhejo ---
+    // --- 6. PRO LEVEL Security: Response mein password mat bhejo ---
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    // Don't send token automatically until email is verified
-    res.status(201).json({
-      msg: "User registered successfully! Please check your email to verify your account.",
-      user: userResponse,
-    });
-  } catch (err) {
-    console.error("Register Error:", err);
-    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
-  }
-};
-
-// VERIFY EMAIL
-export const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.query;
-
-    if (!token) {
-      return res.status(400).json({ success: false, msg: "Verification token is required." });
-    }
-
-    // Hash the token to match what's stored in DB
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
-
-    // Find user with matching token (without expiry check first)
-    const user = await User.findOne({
-      verificationToken: hashedToken,
-    });
-
-    if (!user) {
-      return res.status(400).json({ 
-        success: false, 
-        msg: "Invalid or expired verification token." 
-      });
-    }
-
-    // If user is already verified (e.g. from React double-mount or email scan), return success directly
-    if (user.isVerified) {
-      // Generate token for immediate login
-      const authToken = jwt.sign(
-        {
-          id: user._id,
-          role: user.role,
-          permissions: user.permissions || [],
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      const userResponse = user.toObject();
-      delete userResponse.password;
-
-      return res.status(200).json({
-        success: true,
-        msg: "Email verified successfully!",
-        token: authToken,
-        user: userResponse,
-      });
-    }
-
-    // If not verified yet, check if token has expired
-    if (user.verificationTokenExpires && user.verificationTokenExpires < Date.now()) {
-      return res.status(400).json({ 
-        success: false, 
-        msg: "Verification token has expired." 
-      });
-    }
-
-    // Mark email as verified, keep token to handle duplicate requests but clear expiry
-    user.isVerified = true;
-    user.verificationTokenExpires = undefined;
-    await user.save();
-
-    // Generate token for immediate login
-    const authToken = jwt.sign(
+    // token
+    const token = jwt.sign(
       {
         id: user._id,
         role: user.role,
@@ -223,18 +68,14 @@ export const verifyEmail = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.status(200).json({
-      success: true,
-      msg: "Email verified successfully!",
-      token: authToken,
+    res.status(201).json({
+      msg: "User registered successfully",
+      token,
       user: userResponse,
     });
   } catch (err) {
-    console.error("Verify Email Error:", err);
-    res.status(500).json({ success: false, msg: "Internal server error." });
+    console.error("Register Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
 
@@ -261,7 +102,7 @@ export const login = async (req, res) => {
     }
 
     // check if email is verified - skip for admins and super admins
-    if (!user.isVerified && user.role !== 'admin' && user.role !== 'super_admin') {
+    if (!user.isVerified && user.role !== 'admin' && user.role !== 'superadmin') {
       return res.status(403).json({ 
         success: false, 
         msg: "Please verify your email address before logging in. Check your inbox for verification link." 
@@ -806,7 +647,7 @@ export const createUser = async (req, res) => {
       role: userRole,
       permissions: permissions ? (typeof permissions === 'string' ? JSON.parse(permissions) : permissions) : [],
       createdBy: req.user.id,
-      isVerified: userRole === 'admin' || userRole === 'super_admin' // Auto-verify admins
+      isVerified: userRole === 'admin' || userRole === 'superadmin'
     };
 
     if (req.file) {
@@ -1054,47 +895,5 @@ export const deleteRole = async (req, res) => {
   } catch (err) {
     console.error("Delete Role Error:", err);
     res.status(500).json({ error: "Server Error" });
-  }
-};
-
-// UPDATE FCM TOKEN AND LOCATION
-export const updateFcmTokenAndLocation = async (req, res) => {
-  try {
-    const { fcmToken, latitude, longitude } = req.body;
-    const updateData = {};
-
-    if (fcmToken !== undefined) {
-      updateData.fcmToken = fcmToken;
-    }
-
-    if (latitude !== undefined && longitude !== undefined) {
-      updateData.location = {
-        type: "Point",
-        coordinates: [Number(longitude), Number(latitude)] // GeoJSON expects [longitude, latitude]
-      };
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ success: false, msg: "No update parameters provided" });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updateData },
-      { new: true }
-    ).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ success: false, msg: "User not found" });
-    }
-
-    res.json({
-      success: true,
-      msg: "FCM token and location updated successfully",
-      user
-    });
-  } catch (err) {
-    console.error("Update FCM Token and Location Error:", err);
-    res.status(500).json({ success: false, msg: "Server Error" });
   }
 };  

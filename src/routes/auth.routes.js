@@ -23,9 +23,7 @@ import {
   impersonate,
   updatePassword,
   forgotPassword,
-  resetPassword,
-  verifyEmail,
-  updateFcmTokenAndLocation
+  resetPassword
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkAnyPermission, checkPermission, checkRole } from "../middleware/rbac.middleware.js";
@@ -34,7 +32,6 @@ import { upload } from "../middleware/multer.middleware.js";
 const router = express.Router();
 
 router.post("/register", register);
-router.get("/verify-email", verifyEmail);
 router.post("/login", login);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
@@ -48,7 +45,6 @@ router.put("/profile", authMiddleware, upload.fields([
   { name: 'coverPhoto', maxCount: 1 }
 ]), updateProfile);
 router.put("/update-password", authMiddleware, updatePassword);
-router.post("/update-fcm", authMiddleware, updateFcmTokenAndLocation);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkAnyPermission(["manage_users", "manage_permissions"]), getAllUsers);

@@ -20,11 +20,6 @@ const masterSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    // For sports category: number of players per team/side (e.g. 11 for Cricket, 2 for Tennis)
-    playerCount: {
-      type: Number,
-      default: null,
-    },
   },
   { timestamps: true }
 );

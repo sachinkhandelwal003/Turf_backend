@@ -627,24 +627,6 @@ export const getMyTurfs = async (req, res) => {
 
 
 // ==============================
-// Haversine formula to calculate distance between two coordinates (in km)
-// ==============================
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in km
-  return distance;
-};
-
-// ==============================
 // GET ALL TURFS
 // ==============================
 export const getTurfs = async (req, res) => {
@@ -657,8 +639,6 @@ export const getTurfs = async (req, res) => {
       maxPrice,
       rating,
       interestToHost,
-      userLat,
-      userLng,
     } = req.query;
 
     let query = {
@@ -727,40 +707,8 @@ export const getTurfs = async (req, res) => {
       };
     }
 
-    let turfs = await Turf.find(query)
+    const turfs = await Turf.find(query)
       .populate("owner", "name email");
-
-    // If user coordinates are provided, calculate distance and sort
-    if (userLat && userLng) {
-      const uLat = parseFloat(userLat);
-      const uLng = parseFloat(userLng);
-
-      turfs = turfs.map(turf => {
-        const turfObj = turf.toObject();
-        let distance = null;
-        
-        if (turf.location?.coordinates?.lat && turf.location?.coordinates?.lng) {
-          distance = calculateDistance(
-            uLat,
-            uLng,
-            turf.location.coordinates.lat,
-            turf.location.coordinates.lng
-          );
-        }
-        
-        return {
-          ...turfObj,
-          distance, // distance in km
-        };
-      });
-
-      // Sort turfs by distance (closest first)
-      turfs.sort((a, b) => {
-        if (a.distance === null) return 1;
-        if (b.distance === null) return -1;
-        return a.distance - b.distance;
-      });
-    }
 
     res.json({
       success: true,
@@ -832,18 +780,10 @@ export const getTurfById = async (
       });
     }
 
-    // Only allow access to unapproved turfs if the user is the owner or superadmin
-    if (turf.status !== "approved" && (!req.user || (turf.owner._id.toString() !== req.user.id && req.user.role !== "superadmin"))) {
-      return res.status(403).json({
-        error: "This venue is not approved yet",
-      });
-    }
-
-    // Find other turfs by the same owner (sibling venues) - only approved ones
+    // Find other turfs by the same owner (sibling venues)
     const siblingTurfs = await Turf.find({
       owner: turf.owner._id,
-      _id: { $ne: turf._id },
-      status: "approved"
+      _id: { $ne: turf._id }
     }).select("name sports images location status isActive");
 
     console.log(`Found ${siblingTurfs.length} siblings for owner ${turf.owner._id}`);

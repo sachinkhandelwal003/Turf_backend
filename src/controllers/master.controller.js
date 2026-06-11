@@ -2,17 +2,12 @@ import Master from "../models/master.model.js";
 
 export const updateMaster = async (req, res) => {
   try {
-    const { name, category, playerCount } = req.body;
+    const { name, category } = req.body;
 
     let updateData = {
       name,
       category,
     };
-
-    // Only allow playerCount for sport category
-    if (category === "sport" && playerCount !== undefined) {
-      updateData.playerCount = Number(playerCount);
-    }
 
     if (req.file) {
       updateData.image = req.file.path || req.file.secure_url;
@@ -58,25 +53,18 @@ export const updateMaster = async (req, res) => {
 
 export const createMaster = async (req, res) => {
   try {
-    const { name, category, playerCount } = req.body;
+    const { name, category } = req.body;
     let imageData = "";
     
     if (req.file) {
       imageData = req.file.path || req.file.secure_url;
     }
 
-    const masterData = {
+    const master = await Master.create({
       name,
       category,
       image: imageData,
-    };
-
-    // Only add playerCount if category is sport
-    if (category === "sport" && playerCount !== undefined) {
-      masterData.playerCount = Number(playerCount);
-    }
-
-    const master = await Master.create(masterData);
+    });
     
     res.status(201).json({ success: true, master });
   } catch (err) {

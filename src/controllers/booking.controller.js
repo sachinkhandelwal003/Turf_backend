@@ -3,7 +3,6 @@ import Turf from "../models/turf.model.js";
 import User from "../models/auth/user.model.js";
 import Review from "../models/review.model.js";
 import Settings from "../models/settings.model.js";
-import { sendPushNotification } from "../utils/firebase.js";
 
 const getTodayParts = () => {
   const now = new Date();
@@ -71,39 +70,6 @@ const awardCoins = async (userId, bookingId) => {
     await booking.save();
   } catch (err) {
     console.error("Award Coins Error:", err);
-  }
-};
-
-// Helper to send booking confirmation push notifications
-const sendBookingConfirmationNotifications = async (bookingId) => {
-  try {
-    const booking = await Booking.findById(bookingId).populate("turf").populate("user");
-    if (!booking) return;
-
-    // Notify User
-    if (booking.user && booking.user.fcmToken) {
-      await sendPushNotification(
-        booking.user.fcmToken,
-        "Slot Booked! 🗓️",
-        `Slot booked! Pay ₹${booking.balanceAmount} to ground owner before slot starts at ${booking.startTime}.`,
-        { bookingId: booking._id.toString(), type: "booking_confirmed" }
-      );
-    }
-
-    // Notify Owner
-    if (booking.turf && booking.turf.owner) {
-      const owner = await User.findById(booking.turf.owner);
-      if (owner && owner.fcmToken) {
-        await sendPushNotification(
-          owner.fcmToken,
-          "New Booking! ⚽",
-          `New booking by ${booking.user?.name || "User"}. Balance ₹${booking.balanceAmount} due at venue before ${booking.startTime}.`,
-          { bookingId: booking._id.toString(), type: "new_booking" }
-        );
-      }
-    }
-  } catch (err) {
-    console.error("Error sending booking confirmation notifications:", err);
   }
 };
 
@@ -274,7 +240,6 @@ export const createBooking = async (req, res) => {
     // If offline booking (confirmed), award coins
     if (finalIsOffline) {
       await awardCoins(finalUserId, booking._id);
-      sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
     }
 
     res.status(201).json({
@@ -414,7 +379,6 @@ export const processPayment = async (req, res) => {
     // Award coins for each booking
     for (const booking of bookings) {
       await awardCoins(booking.user, booking._id);
-      sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
     }
 
     res.json({
@@ -529,9 +493,6 @@ export const updateBookingStatus = async (req, res) => {
     // Award coins if status is confirmed or completed
     if (["confirmed", "completed"].includes(status)) {
       await awardCoins(booking.user, booking._id);
-      if (status === "confirmed") {
-        sendBookingConfirmationNotifications(booking._id).catch(err => console.error(err));
-      }
     }
 
     res.json({
@@ -661,15 +622,6 @@ export const checkAvailability = async (req, res) => {
       return res.status(400).json({ error: "Turf ID and date are required" });
     }
 
-    // Check if turf is approved
-    const turf = await Turf.findById(turfId);
-    if (!turf) {
-      return res.status(404).json({ error: "Turf not found" });
-    }
-    if (turf.status !== "approved") {
-      return res.status(403).json({ error: "This venue is not approved yet" });
-    }
-
     console.log(`Checking availability for Turf: ${turfId} on Date: ${date}`);
 
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -714,9 +666,8 @@ export const getAdminTurfBookings = async (req, res) => {
 
     // 1. Find all turfs owned by this admin
     // Include fields needed by admin panel (offline booking slot generation, court selection, etc.)
-    // Only include approved turfs
-    const myTurfs = await Turf.find({ owner: req.user.id, status: "approved" }).select(
-      "_id name sports courts operatingHours slotDuration availableSlots pricePerHour rates upiId status sportConfigs"
+    const myTurfs = await Turf.find({ owner: req.user.id }).select(
+      "_id name sports courts operatingHours slotDuration availableSlots"
     );
     const myTurfIds = myTurfs.map(t => t._id);
 
@@ -819,9 +770,6 @@ export const getCheckoutDetails = async (req, res) => {
     const turf = await Turf.findById(turfId);
     if (!turf) {
       return res.status(404).json({ error: "Turf not found" });
-    }
-    if (turf.status !== "approved") {
-      return res.status(403).json({ error: "This venue is not approved yet" });
     }
 
     // 1. Check Availability

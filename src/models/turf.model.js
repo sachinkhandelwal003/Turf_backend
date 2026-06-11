@@ -51,8 +51,7 @@ const turfSchema = new mongoose.Schema(
     },
 
     surfaceType: {
-      type: [String],
-      default: [],
+      type: String,
     },
 
     // Dynamic pricing by specific time slots
@@ -97,48 +96,37 @@ const turfSchema = new mongoose.Schema(
     ],
 
     // Working hours only
-    operatingHours: {
-      type: [
-        {
-          day: {
-            type: String,
-            enum: [
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-              "Sunday",
-            ],
-          },
-
-          open: {
-            type: String,
-            default: "06:00",
-          },
-
-          close: {
-            type: String,
-            default: "22:00",
-          },
-
-          isOpen: {
-            type: Boolean,
-            default: true,
-          },
+    operatingHours: [
+      {
+        day: {
+          type: String,
+          enum: [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ],
         },
-      ],
-      default: [
-        { day: "Monday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Tuesday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Wednesday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Thursday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Friday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Saturday", open: "06:00", close: "22:00", isOpen: true },
-        { day: "Sunday", open: "06:00", close: "22:00", isOpen: true },
-      ],
-    },
+
+        open: {
+          type: String,
+          default: "06:00",
+        },
+
+        close: {
+          type: String,
+          default: "22:00",
+        },
+
+        isOpen: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    ],
 
     // Courts
     courts: [
