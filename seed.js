@@ -127,7 +127,7 @@ const seedDatabase = async () => {
       { name: "Clay", category: "court_type", isActive: true },
       { name: "Grass", category: "court_type", isActive: true }
     ]);
-
+// uisgefsyuldfgosduigfsdayuofgsdaoug
     // 5. Seed 3 Venues
     console.log("Seeding venues...");
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
