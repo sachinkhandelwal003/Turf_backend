@@ -1,6 +1,8 @@
 import User from "../models/auth/user.model.js";
 import Role from "../models/auth/role.model.js";
 import Permission from "../models/auth/permission.model.js";
+import Settings from "../models/settings.model.js";
+import { OAuth2Client } from "google-auth-library";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -46,19 +48,125 @@ export const register = async (req, res) => {
     // 5. Hashing & Creating User
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate verification token (30 min expiry)
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
+
     const user = await User.create({
       name,
       email,
       phone,
       password: hashedPassword,
+      isVerified: false,
+      verificationToken,
+      verificationExpires,
     });
+
+    // Send verification email
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+    const message = `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nThis link will expire in 30 minutes.\n\nIf you didn't create this account, please ignore this email.`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+          .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #1abc60; }
+          .logo { font-size: 28px; font-weight: bold; color: #1abc60; text-decoration: none; }
+          .content { padding: 30px 0; line-height: 1.6; }
+          .button-container { text-align: center; margin: 30px 0; }
+          .button { background-color: #1abc60; color: white !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(26, 188, 96, 0.2); }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #eee; margin-top: 20px; }
+          .warning { background-color: #fff8f0; border-left: 4px solid #ff9800; padding: 15px; margin: 20px 0; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <a href="${frontendUrl}" class="logo">GameOn India</a>
+          </div>
+          <div class="content">
+            <h2>Email Verification Required</h2>
+            <p>Hi ${name},</p>
+            <p>Thank you for signing up! Please verify your email address by clicking the button below.</p>
+            
+            <div class="button-container">
+              <a href="${verificationUrl}" class="button">Verify Email Address</a>
+            </div>
+
+            <div class="warning">
+              This verification link will expire in <strong>30 minutes</strong>.
+            </div>
+
+            <p>If the button above doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; font-size: 13px; color: #1abc60;">${verificationUrl}</p>
+            <p>If you didn't create this account, please ignore this email.</p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} GameOn India. All rights reserved.</p>
+            <p>Manage your turf bookings effortlessly.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Verify your GameOn India account",
+        message,
+        html
+      });
+    } catch (emailErr) {
+      console.error("Email Send Error:", emailErr);
+      // If email fails, we can still proceed but inform the user?
+    }
 
     // --- 6. PRO LEVEL Security: Response mein password mat bhejo ---
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    // token
-    const token = jwt.sign(
+    // Don't log the user in immediately, require email verification first
+    res.status(201).json({
+      success: true,
+      msg: "User registered successfully. Please check your email for verification link.",
+    });
+  } catch (err) {
+    console.error("Register Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
+  }
+};
+
+// VERIFY EMAIL
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ success: false, msg: "Verification token is required" });
+    }
+
+    const user = await User.findOne({
+      verificationToken: token,
+      verificationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, msg: "Invalid or expired verification link" });
+    }
+
+    // Mark user as verified
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationExpires = undefined;
+    await user.save();
+
+    // Generate token
+    const authToken = jwt.sign(
       {
         id: user._id,
         role: user.role,
@@ -68,13 +176,17 @@ export const register = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.status(201).json({
-      msg: "User registered successfully",
-      token,
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json({
+      success: true,
+      msg: "Email verified successfully",
+      token: authToken,
       user: userResponse,
     });
   } catch (err) {
-    console.error("Register Error:", err);
+    console.error("Verify Email Error:", err);
     res.status(500).json({ success: false, msg: "Internal server error. Please try again later." });
   }
 };
@@ -99,14 +211,6 @@ export const login = async (req, res) => {
     // check if user is active
     if (!user.isActive) {
       return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
-    }
-
-    // check if email is verified - skip for admins and super admins
-    if (!user.isVerified && user.role !== 'admin' && user.role !== 'superadmin') {
-      return res.status(403).json({ 
-        success: false, 
-        msg: "Please verify your email address before logging in. Check your inbox for verification link." 
-      });
     }
 
     // check password
@@ -895,5 +999,80 @@ export const deleteRole = async (req, res) => {
   } catch (err) {
     console.error("Delete Role Error:", err);
     res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// GOOGLE LOGIN
+export const googleLogin = async (req, res) => {
+  try {
+    const { tokenId } = req.body;
+
+    if (!tokenId) {
+      return res.status(400).json({ success: false, msg: "Token ID is required" });
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: tokenId,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const googleId = payload?.sub;
+    const email = payload?.email;
+    const name = payload?.name;
+    const picture = payload?.picture;
+
+    if (!email || !name) {
+      return res.status(400).json({ success: false, msg: "Invalid Google token" });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+      // If user exists but doesn't have googleId, update it
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      // Create new user
+      user = await User.create({
+        name,
+        email: email.toLowerCase(),
+        googleId,
+        profilePhoto: picture || "",
+        isVerified: true,
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        permissions: user.permissions || [],
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({
+      success: true,
+      msg: "Login successful",
+      token,
+      user: userResponse,
+    });
+  } catch (err) {
+    console.error("Google Login Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };  

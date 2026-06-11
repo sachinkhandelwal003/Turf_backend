@@ -23,7 +23,9 @@ import {
   impersonate,
   updatePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  googleLogin,
+  verifyEmail
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkAnyPermission, checkPermission, checkRole } from "../middleware/rbac.middleware.js";
@@ -33,6 +35,8 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/google-login", googleLogin);
+router.post("/verify-email", verifyEmail);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
