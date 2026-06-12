@@ -163,12 +163,34 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ success: false, msg: "Verification token is required" });
     }
 
-    const user = await User.findOne({
+    let user = await User.findOne({
       verificationToken: token,
       verificationExpires: { $gt: Date.now() },
     });
 
+    // If no user found, check if user is already verified
     if (!user) {
+      user = await User.findOne({ verificationToken: token });
+      if (user && user.isVerified) {
+        // User is already verified, generate new token
+        const authToken = jwt.sign(
+          {
+            id: user._id,
+            role: user.role,
+            permissions: user.permissions || [],
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: "7d" }
+        );
+        const userResponse = user.toObject();
+        delete userResponse.password;
+        return res.status(200).json({
+          success: true,
+          msg: "Email is already verified",
+          token: authToken,
+          user: userResponse,
+        });
+      }
       return res.status(400).json({ success: false, msg: "Invalid or expired verification link" });
     }
 
