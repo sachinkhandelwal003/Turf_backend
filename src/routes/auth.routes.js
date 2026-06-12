@@ -25,7 +25,8 @@ import {
   forgotPassword,
   resetPassword,
   googleLogin,
-  verifyEmail
+  verifyEmail,
+  updateFCM
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkAnyPermission, checkPermission, checkRole } from "../middleware/rbac.middleware.js";
@@ -49,6 +50,7 @@ router.put("/profile", authMiddleware, upload.fields([
   { name: 'coverPhoto', maxCount: 1 }
 ]), updateProfile);
 router.put("/update-password", authMiddleware, updatePassword);
+router.post("/update-fcm", authMiddleware, updateFCM);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkAnyPermission(["manage_users", "manage_permissions"]), getAllUsers);

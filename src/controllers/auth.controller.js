@@ -239,15 +239,15 @@ export const login = async (req, res) => {
     }
 
     // Send login alert notification
-        if (user.fcmToken) {
-          sendPushAndSave(
-            user._id,
-            user.fcmToken,
-            "New Login Detected 🔐",
-            `Hi ${user.name}, your account was just logged into. If this wasn't you, please change your password immediately.`,
-            "login_alert"
-          ).catch(err => console.error("Login alert notification error:", err));
-        }
+    if (user.fcmToken) {
+      sendPushAndSave(
+        user._id,
+        user.fcmToken,
+        "New Login Detected 🔐",
+        `Hi ${user.name}, your account was just logged into. If this wasn't you, please change your password immediately.`,
+        "login_alert"
+      ).catch(err => console.error("Login alert notification error:", err));
+    }
 
     // token
     const token = jwt.sign(
@@ -1133,4 +1133,25 @@ export const googleLogin = async (req, res) => {
     console.error("Google Login Error:", err);
     res.status(500).json({ success: false, msg: "Internal server error" });
   }
-};  
+};
+
+// UPDATE FCM TOKEN
+export const updateFCM = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({ success: false, msg: "FCM token is required" });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, { fcmToken });
+
+    res.json({
+      success: true,
+      msg: "FCM token updated successfully"
+    });
+  } catch (err) {
+    console.error("Update FCM Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
