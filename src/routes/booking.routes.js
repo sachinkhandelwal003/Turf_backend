@@ -11,8 +11,11 @@ import {
   checkAvailability,
   deleteBooking,
   getCheckoutDetails,
-  cancelMyBooking,
 } from "../controllers/booking.controller.js";
+import {
+  getRefundPreview,
+  cancelBooking,
+} from "../controllers/refund.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/rbac.middleware.js";
 
@@ -32,7 +35,11 @@ router.get(
 router.get("/turf/:turfId", authMiddleware, getTurfBookings);
 router.get("/:id", authMiddleware, getBookingById);
 router.post("/:id/pay", authMiddleware, processPayment);
-router.post("/:id/cancel", authMiddleware, cancelMyBooking);
+
+// Cancel & Refund Preview Routes
+router.get("/:bookingId/refund-preview", authMiddleware, getRefundPreview);
+router.post("/:bookingId/cancel", authMiddleware, cancelBooking);
+
 router.patch("/:id/status", authMiddleware, checkRole(["admin", "superadmin"]), updateBookingStatus);
 router.delete("/:id", authMiddleware, checkRole(["admin", "superadmin"]), deleteBooking);
 
