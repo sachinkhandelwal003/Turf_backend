@@ -13,6 +13,69 @@ const getHoursUntilBooking = (booking) => {
   return diffHours;
 };
 
+// Helper to get refund category based on hours
+const getRefundCategory = (hoursUntilBooking) => {
+  if (hoursUntilBooking > 24) {
+    return "more_than_24h";
+  } else if (hoursUntilBooking >= 12 && hoursUntilBooking <= 24) {
+    return "12_to_24h";
+  } else if (hoursUntilBooking >= 2 && hoursUntilBooking < 12) {
+    return "2_to_12h";
+  } else {
+    return "less_than_2h";
+  }
+};
+
+// Helper to calculate refund and owner compensation
+const calculateRefund = (booking, hoursUntilBooking) => {
+  const category = getRefundCategory(hoursUntilBooking);
+  const totalAmount = booking.paidAmount;
+  const adminShare = booking.adminCommission || totalAmount * 0.2;
+  const ownerShare = booking.ownerShare || totalAmount * 0.8;
+
+  let refundPercentage;
+  let ownerKeepsPercentage;
+  let policyNote;
+
+  switch (category) {
+    case "more_than_24h":
+      refundPercentage = 100;
+      ownerKeepsPercentage = 0;
+      policyNote = "Full refund: 100% to player, owner compensation reversed";
+      break;
+    case "12_to_24h":
+      refundPercentage = 50;
+      ownerKeepsPercentage = 50;
+      policyNote = "50% refund: 50% to player, owner keeps 50% of share";
+      break;
+    case "2_to_12h":
+    case "less_than_2h":
+    default:
+      refundPercentage = 0;
+      ownerKeepsPercentage = 100;
+      policyNote = "0% refund: Owner keeps full share";
+      break;
+  }
+
+  const refundAmount = (totalAmount * refundPercentage) / 100;
+  const ownerKeepsAmount = (ownerShare * ownerKeepsPercentage) / 100;
+  const adminKeepsAmount = adminShare;
+
+  return {
+    category,
+    refundPercentage,
+    ownerKeepsPercentage,
+    refundAmount,
+    ownerKeepsAmount,
+    adminKeepsAmount,
+    totalAmount,
+    adminShare,
+    ownerShare,
+    policyNote,
+    canCancel: true
+  };
+};
+
 // @desc    Get Refund Preview (Calculate refund amount before cancel)
 // @route   GET /api/bookings/:bookingId/refund-preview
 // @access  Private
@@ -34,33 +97,13 @@ export const getRefundPreview = async (req, res) => {
       return res.status(400).json({ error: "Cannot get refund preview for this booking" });
     }
 
-    const settings = await Settings.findOne();
     const hoursUntilBooking = getHoursUntilBooking(booking);
-    const isMoreThan48Hours = hoursUntilBooking >= 48;
-
-    let convenienceFeeDeducted = 0;
-    let refundAmount = 0;
-
-    if (isMoreThan48Hours) {
-      // Full refund: return paid amount, no convenience fee deduction
-      refundAmount = booking.paidAmount;
-      convenienceFeeDeducted = 0;
-    } else {
-      // Less than 48 hours: deduct convenience fee
-      refundAmount = booking.paidAmount - booking.convenienceFee;
-      convenienceFeeDeducted = booking.convenienceFee;
-      refundAmount = Math.max(0, refundAmount);
-    }
+    const refundData = calculateRefund(booking, hoursUntilBooking);
 
     res.json({
       success: true,
-      preview: {
-        bookingId: booking._id,
-        paidAmount: booking.paidAmount,
-        convenienceFee: booking.convenienceFee,
-        convenienceFeeDeducted,
-        refundAmount,
-        isMoreThan48Hours,
+      data: {
+        ...refundData,
         hoursUntilBooking: Math.round(hoursUntilBooking * 10) / 10
       }
     });
@@ -70,7 +113,7 @@ export const getRefundPreview = async (req, res) => {
   }
 };
 
-// @desc    Cancel Booking (with 48hr check)
+// @desc    Cancel Booking (with new policy)
 // @route   POST /api/bookings/:bookingId/cancel
 // @access  Private
 export const cancelBooking = async (req, res) => {
@@ -95,37 +138,30 @@ export const cancelBooking = async (req, res) => {
     }
 
     const hoursUntilBooking = getHoursUntilBooking(booking);
+    const refundData = calculateRefund(booking, hoursUntilBooking);
 
-    // Update booking status
+    // Update booking status and cancellation details
     booking.status = 'cancelled';
+    booking.cancellationDetails = {
+      category: refundData.category,
+      hoursUntilBooking: refundData.hoursUntilBooking,
+      refundAmount: refundData.refundAmount,
+      ownerKeepsAmount: refundData.ownerKeepsAmount,
+      adminKeepsAmount: refundData.adminKeepsAmount,
+      policyNote: refundData.policyNote
+    };
     await booking.save();
 
     // If payment was made, create a refund request automatically
     if (booking.paymentStatus === 'paid' && booking.paidAmount > 0) {
-      const settings = await Settings.findOne();
-      const isMoreThan48Hours = hoursUntilBooking >= 48;
-
-      let convenienceFeeDeducted = 0;
-      let refundAmount = 0;
-
-      if (isMoreThan48Hours) {
-        refundAmount = booking.paidAmount;
-        convenienceFeeDeducted = 0;
-      } else {
-        refundAmount = booking.paidAmount - booking.convenienceFee;
-        convenienceFeeDeducted = booking.convenienceFee;
-        refundAmount = Math.max(0, refundAmount);
-      }
-
       // Create automatic refund request (user-initiated)
       await Refund.create({
         booking: booking._id,
         user: booking.user,
         reason: "user_initiated",
-        description: `Booking cancelled ${Math.round(hoursUntilBooking)} hours before start time`,
-        amount: refundAmount,
-        convenienceFeeDeducted,
-        status: refundAmount > 0 ? "PENDING" : "PROCESSED"
+        description: refundData.policyNote,
+        amount: refundData.refundAmount,
+        status: refundData.refundAmount > 0 ? "PENDING" : "PROCESSED"
       });
     }
 
@@ -140,7 +176,7 @@ export const cancelBooking = async (req, res) => {
           populatedBooking.user._id,
           populatedBooking.user.fcmToken,
           "Booking Cancelled",
-          `Your ${populatedBooking.turf.name} booking has been cancelled.`,
+          `Your ${populatedBooking.turf.name} booking has been cancelled. ${refundData.policyNote}`,
           "booking_cancelled",
           { bookingId: populatedBooking._id.toString() }
         ).catch(err => console.error("Notification error:", err));

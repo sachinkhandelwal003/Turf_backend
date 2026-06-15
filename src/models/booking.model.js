@@ -118,6 +118,22 @@ const bookingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    adminCommission: {
+      type: Number,
+      default: 0,
+    },
+    ownerShare: {
+      type: Number,
+      default: 0,
+    },
+    cancellationDetails: {
+      category: { type: String },
+      hoursUntilBooking: { type: Number },
+      refundAmount: { type: Number, default: 0 },
+      ownerKeepsAmount: { type: Number, default: 0 },
+      adminKeepsAmount: { type: Number, default: 0 },
+      policyNote: { type: String }
+    }
   },
   { timestamps: true }
 );

@@ -726,24 +726,44 @@ export const getTurfs = async (req, res) => {
 
 
 // ==============================
-// SEARCH TURFS BY NAME (Simplified Search)
+// SEARCH TURFS (Multi-Field Search: Name, Area, Sport)
 // ==============================
 export const searchTurfsByName = async (req, res) => {
   try {
-    const { name } = req.query;
+    const { name, area, sport } = req.query;
 
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: "Search query (name) is required",
-      });
-    }
-
-    const turfs = await Turf.find({
-      name: new RegExp(name, "i"),
+    let query = {
       isActive: true,
       status: "approved",
-    }).select("name location images sports pricePerHour rating");
+    };
+
+    // If any search parameter is provided, build $or conditions
+    if (name || area || sport) {
+      query.$or = [];
+
+      // Search by name
+      if (name) {
+        query.$or.push({ name: new RegExp(name, "i") });
+      }
+
+      // Search by area (location.city, location.address, location.landmark)
+      if (area) {
+        query.$or.push(
+          { "location.city": new RegExp(area, "i") },
+          { "location.address": new RegExp(area, "i") },
+          { "location.landmark": new RegExp(area, "i") }
+        );
+      }
+
+      // Search by sport
+      if (sport) {
+        query.$or.push({ sports: new RegExp(sport, "i") });
+      }
+    }
+
+    const turfs = await Turf.find(query).select(
+      "name location images sports pricePerHour rating"
+    );
 
     res.json({
       success: true,
