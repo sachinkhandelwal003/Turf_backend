@@ -81,19 +81,41 @@ const calculateRefund = (booking, hoursUntilBooking) => {
 // @access  Private
 export const getRefundPreview = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.bookingId);
+    console.log("Refund Preview Request - Params:", req.params);
+    console.log("Refund Preview Request - User:", req.user?.id);
+    
+    // Try to find by _id first (if it looks like ObjectId), then by bookingId
+    let booking;
+    const bookingIdParam = req.params.bookingId;
+    
+    // Check if the param looks like a MongoDB ObjectId (24 hex chars)
+    if (/^[0-9a-fA-F]{24}$/.test(bookingIdParam)) {
+      console.log("Trying to find by _id:", bookingIdParam);
+      booking = await Booking.findById(bookingIdParam);
+    }
+    
+    // If not found or not ObjectId, try by bookingId
+    if (!booking) {
+      console.log("Trying to find by bookingId:", bookingIdParam);
+      booking = await Booking.findOne({ bookingId: bookingIdParam });
+    }
 
     if (!booking) {
+      console.log("Booking not found at all for:", req.params.bookingId);
       return res.status(404).json({ error: "Booking not found" });
     }
 
+    console.log("Found booking:", booking._id, booking.bookingId);
+
     // Check ownership
     if (booking.user.toString() !== req.user.id) {
+      console.log("Ownership check failed - booking user:", booking.user.toString(), "req user:", req.user.id);
       return res.status(403).json({ error: "Not authorized" });
     }
 
     // Check if booking is already cancelled or completed
     if (booking.status === 'cancelled' || booking.status === 'completed') {
+      console.log("Booking status check failed:", booking.status);
       return res.status(400).json({ error: "Cannot get refund preview for this booking" });
     }
 
@@ -109,7 +131,7 @@ export const getRefundPreview = async (req, res) => {
     });
   } catch (err) {
     console.error("Refund Preview Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: "Server Error", details: err.message });
   }
 };
 
@@ -118,22 +140,45 @@ export const getRefundPreview = async (req, res) => {
 // @access  Private
 export const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.bookingId);
+    console.log("Cancel Booking Request - Params:", req.params);
+    console.log("Cancel Booking Request - User:", req.user?.id);
+    
+    // Try to find by _id first (if it looks like ObjectId), then by bookingId
+    let booking;
+    const bookingIdParam = req.params.bookingId;
+    
+    // Check if the param looks like a MongoDB ObjectId (24 hex chars)
+    if (/^[0-9a-fA-F]{24}$/.test(bookingIdParam)) {
+      console.log("Trying to find by _id:", bookingIdParam);
+      booking = await Booking.findById(bookingIdParam);
+    }
+    
+    // If not found or not ObjectId, try by bookingId
+    if (!booking) {
+      console.log("Trying to find by bookingId:", bookingIdParam);
+      booking = await Booking.findOne({ bookingId: bookingIdParam });
+    }
 
     if (!booking) {
+      console.log("Booking not found at all for:", req.params.bookingId);
       return res.status(404).json({ error: "Booking not found" });
     }
 
+    console.log("Found booking for cancel:", booking._id, booking.bookingId);
+
     // Check ownership
     if (booking.user.toString() !== req.user.id) {
+      console.log("Ownership check failed - booking user:", booking.user.toString(), "req user:", req.user.id);
       return res.status(403).json({ error: "Not authorized to cancel this booking" });
     }
 
     // Check if it's already cancelled or completed
     if (booking.status === 'cancelled') {
+      console.log("Booking is already cancelled");
       return res.status(400).json({ error: "Booking is already cancelled" });
     }
     if (booking.status === 'completed') {
+      console.log("Booking is completed, cannot cancel");
       return res.status(400).json({ error: "Cannot cancel a completed booking" });
     }
 
@@ -144,16 +189,18 @@ export const cancelBooking = async (req, res) => {
     booking.status = 'cancelled';
     booking.cancellationDetails = {
       category: refundData.category,
-      hoursUntilBooking: refundData.hoursUntilBooking,
+      hoursUntilBooking: Math.round(hoursUntilBooking * 10) / 10,
       refundAmount: refundData.refundAmount,
       ownerKeepsAmount: refundData.ownerKeepsAmount,
       adminKeepsAmount: refundData.adminKeepsAmount,
       policyNote: refundData.policyNote
     };
     await booking.save();
+    console.log("Booking status updated to cancelled");
 
     // If payment was made, create a refund request automatically
     if (booking.paymentStatus === 'paid' && booking.paidAmount > 0) {
+      console.log("Creating automatic refund request for amount:", refundData.refundAmount);
       // Create automatic refund request (user-initiated)
       await Refund.create({
         booking: booking._id,
@@ -163,6 +210,7 @@ export const cancelBooking = async (req, res) => {
         amount: refundData.refundAmount,
         status: refundData.refundAmount > 0 ? "PENDING" : "PROCESSED"
       });
+      console.log("Refund request created successfully");
     }
 
     // Send notifications
@@ -190,7 +238,7 @@ export const cancelBooking = async (req, res) => {
     });
   } catch (err) {
     console.error("Cancel Booking Error:", err);
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: "Server Error", details: err.message });
   }
 };
 
@@ -199,7 +247,7 @@ export const cancelBooking = async (req, res) => {
 // @access  Private
 export const requestRefund = async (req, res) => {
   try {
-    const { bookingId, reason, description } = req.body;
+    const { bookingId, reason, description, amount } = req.body;
 
     const booking = await Booking.findById(bookingId);
 
@@ -213,7 +261,7 @@ export const requestRefund = async (req, res) => {
     }
 
     // Validate reason
-    const validReasons = ["venue_closed", "venue_unavailable", "wrong_booking", "other"];
+    const validReasons = ["venue_closed", "venue_unavailable", "wrong_booking", "user_initiated", "other"];
     if (!validReasons.includes(reason)) {
       return res.status(400).json({ error: "Invalid reason" });
     }
@@ -229,7 +277,7 @@ export const requestRefund = async (req, res) => {
     }
 
     // Calculate refund amount (full amount for issue-based refunds)
-    const refundAmount = booking.paidAmount;
+    const refundAmount = amount || booking.paidAmount || 0;
 
     const refund = await Refund.create({
       booking: bookingId,

@@ -326,57 +326,64 @@ export const getBookingById = async (req, res) => {
 // @access  Private
 export const processPayment = async (req, res) => {
   try {
-    const { paymentMethod, paymentId, usedCoins } = req.body;
+    const { paymentMethod, paymentId, usedCoins, paymentStrategy } = req.body;
     const ids = req.params.id.split(',');
     
     // Find bookings to get user IDs and current amounts
     const bookings = await Booking.find({ _id: { $in: ids } });
 
-    // If usedCoins is provided, validate and apply discount
+    // Validate and prepare coin discount if usedCoins is provided
+    const settings = await Settings.findOne();
+    const coinValue = settings?.coinValue || 1;
+    
+    let remainingDiscount = 0;
     if (usedCoins && usedCoins > 0) {
       const user = await User.findById(req.user.id);
       if (user.coins < usedCoins) {
         return res.status(400).json({ error: "Insufficient coins" });
       }
 
-      // Get coin value from settings
-      const settings = await Settings.findOne();
-      const coinValue = settings?.coinValue || 1;
-      const totalCoinDiscount = usedCoins * coinValue;
-
       // Deduct coins from user
       await User.findByIdAndUpdate(req.user.id, { $inc: { coins: -usedCoins } });
-
-      // Update bookings with usedCoins and adjusted amounts
-      let remainingDiscount = totalCoinDiscount;
-      for (const booking of bookings) {
-        if (remainingDiscount <= 0) break;
-        const discountToApply = Math.min(remainingDiscount, booking.totalAmount);
-        
-        // We store the coin count used for this booking (approximate if split)
-        // Since we are applying ₹ discount, we convert back to coins for storage if needed
-        // but it's better to store ₹ discount or just the coins. 
-        // User asked for "discount in payment".
-        booking.usedCoins = (booking.usedCoins || 0) + (discountToApply / coinValue);
-        booking.totalAmount -= discountToApply;
-        booking.paidAmount = booking.paymentStrategy === 'full' ? booking.totalAmount : (booking.totalAmount * 0.25);
-        booking.balanceAmount = booking.totalAmount - booking.paidAmount;
-        remainingDiscount -= discountToApply;
-        await booking.save();
-      }
+      remainingDiscount = usedCoins * coinValue;
     }
 
-    const results = await Booking.updateMany(
-      { _id: { $in: ids } },
-      { 
-        $set: { 
-          paymentStatus: 'paid',
-          status: 'confirmed',
-          paymentMethod,
-          paymentId
-        } 
+    // Process each booking to update payment details
+    for (const booking of bookings) {
+      // Update payment strategy if provided from frontend checkout choice
+      if (paymentStrategy) {
+        booking.paymentStrategy = paymentStrategy;
       }
-    );
+
+      // Apply coin discount if there is any remaining discount
+      if (remainingDiscount > 0) {
+        const discountToApply = Math.min(remainingDiscount, booking.totalAmount);
+        booking.usedCoins = (booking.usedCoins || 0) + (discountToApply / coinValue);
+        booking.totalAmount = Math.max(0, booking.totalAmount - discountToApply);
+        remainingDiscount -= discountToApply;
+      }
+
+      // Recalculate paidAmount and balanceAmount based on the (updated) paymentStrategy
+      const resolvedConvenienceFee = booking.convenienceFee || 0;
+      const coinDiscount = (booking.usedCoins || 0) * coinValue;
+      const finalPrice = booking.price || 0;
+
+      if (booking.paymentStrategy === 'full') {
+        booking.paidAmount = booking.totalAmount;
+      } else if (booking.paymentStrategy === 'partial') {
+        // Partial = 25% of Venue Price + 100% of Fee - Discount
+        booking.paidAmount = (finalPrice * 0.25) + resolvedConvenienceFee - coinDiscount;
+      }
+      booking.balanceAmount = Math.max(0, booking.totalAmount - booking.paidAmount);
+
+      // Set booking payment and status fields
+      booking.paymentStatus = 'paid';
+      booking.status = 'confirmed';
+      if (paymentMethod) booking.paymentMethod = paymentMethod;
+      if (paymentId) booking.paymentId = paymentId;
+
+      await booking.save();
+    }
 
     // Award coins for each booking
     for (const booking of bookings) {
@@ -440,7 +447,7 @@ export const processPayment = async (req, res) => {
     res.json({
       success: true,
       message: "Payment processed successfully",
-      count: results.modifiedCount
+      count: bookings.length
     });
   } catch (err) {
     console.error("Process Payment Error:", err);
