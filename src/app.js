@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.routes.js";
 import turfRoutes from "./routes/turf.routes.js";
 import masterRoutes from "./routes/master.routes.js";
@@ -53,6 +54,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
+app.use(passport.initialize());
 
 // --- Static Files ---
 app.use("/uploads", express.static("public/uploads"));

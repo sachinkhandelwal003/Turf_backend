@@ -3,6 +3,7 @@ import Role from "../models/auth/role.model.js";
 import Permission from "../models/auth/permission.model.js";
 import Settings from "../models/settings.model.js";
 import { OAuth2Client } from "google-auth-library";
+import appleSignin from "apple-signin-auth";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -1153,6 +1154,122 @@ export const googleLogin = async (req, res) => {
     });
   } catch (err) {
     console.error("Google Login Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
+
+// APPLE LOGIN
+export const appleLogin = async (req, res) => {
+  try {
+    const { idToken, fullName, fcmToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ success: false, msg: "ID Token is required" });
+    }
+
+    // Verify Apple ID Token
+    const appleSigninOptions = {
+      clientId: process.env.APPLE_CLIENT_ID, // Service ID (Client ID) from Apple Developer Portal
+      nonce: undefined, // We don't use nonce right now
+    };
+
+    const payload = await appleSignin.verifyIdToken(idToken, appleSigninOptions);
+    const appleId = payload.sub;
+    const email = payload.email;
+
+    if (!appleId) {
+      return res.status(400).json({ success: false, msg: "Invalid Apple token" });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({
+      $or: [{ appleId }, email ? { email: email.toLowerCase() } : { _id: null }],
+    });
+
+    if (user) {
+      // If user exists but doesn't have appleId, update it
+      if (!user.appleId) {
+        user.appleId = appleId;
+      }
+      // Update email if we got it and user doesn't have one
+      if (email && !user.email) {
+        user.email = email.toLowerCase();
+      }
+      // Save FCM token if provided
+      if (fcmToken) {
+        user.fcmToken = fcmToken;
+      }
+      await user.save();
+    } else {
+      // Create new user
+      let userName = "Apple User";
+      // Try to get name from fullName (Apple only sends this on first sign-in)
+      if (fullName && (fullName.givenName || fullName.familyName)) {
+        userName = [fullName.givenName, fullName.familyName].filter(Boolean).join(" ");
+      } else if (email) {
+        userName = email.split("@")[0];
+      }
+
+      user = await User.create({
+        name: userName,
+        email: email ? email.toLowerCase() : `apple_${appleId}@example.com`,
+        appleId,
+        profilePhoto: "",
+        isVerified: true, // Apple emails are already verified
+        fcmToken: fcmToken || null,
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, msg: "Your account is deactivated. Please contact support." });
+    }
+
+    // Send notification
+    if (user.fcmToken) {
+      // Check if user was just created (new user)
+      const isNewUser = user.createdAt > new Date(Date.now() - 5000); // Within last 5 seconds
+      if (isNewUser) {
+        sendPushAndSave(
+          user._id,
+          user.fcmToken,
+          "Welcome to GameOn India 🎉",
+          `Hi ${user.name}! Thanks for signing up with Apple. Start booking turfs and joining matches now!`,
+          "welcome"
+        ).catch(err => console.error("Welcome notification error:", err));
+      } else {
+        sendPushAndSave(
+          user._id,
+          user.fcmToken,
+          "New Login Detected 🔐",
+          `Hi ${user.name}, your account was just logged into with Apple. If this wasn't you, please change your password immediately.`,
+          "login_alert"
+        ).catch(err => console.error("Login alert notification error:", err));
+      }
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        permissions: user.permissions || [],
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({
+      success: true,
+      msg: "Login successful",
+      token,
+      user: userResponse,
+    });
+  } catch (err) {
+    console.error("Apple Login Error:", err);
     res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
