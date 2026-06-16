@@ -12,6 +12,10 @@ const refundSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    admin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     reason: {
       type: String,
       enum: [
@@ -45,6 +49,11 @@ const refundSchema = new mongoose.Schema(
       ],
       default: "PENDING",
     },
+    upiDetails: {
+      upiId: { type: String },
+      upiName: { type: String },
+      upiNote: { type: String }
+    },
     rejectionReason: {
       type: String,
     },
@@ -61,6 +70,10 @@ const refundSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Indexes for faster queries
+refundSchema.index({ admin: 1, createdAt: -1 });
+refundSchema.index({ user: 1, createdAt: -1 });
 
 const Refund = mongoose.model("Refund", refundSchema);
 

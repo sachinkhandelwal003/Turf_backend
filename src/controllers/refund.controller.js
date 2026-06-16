@@ -115,9 +115,9 @@ export const getRefundPreview = async (req, res) => {
     const requestUserId = req.user._id.toString();
     const userRole = req.user.role;
     
-    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole));
+    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole));
     
-    if (!(bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole))) {
+    if (!(bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole))) {
       console.log("Authorization check FAILED!");
       return res.status(403).json({ error: "Not authorized" });
     }
@@ -160,13 +160,13 @@ export const cancelBooking = async (req, res) => {
     // Check if the param looks like a MongoDB ObjectId (24 hex chars)
     if (/^[0-9a-fA-F]{24}$/.test(bookingIdParam)) {
       console.log("Trying to find by _id:", bookingIdParam);
-      booking = await Booking.findById(bookingIdParam);
+      booking = await Booking.findById(bookingIdParam).populate('turf');
     }
     
     // If not found or not ObjectId, try by bookingId
     if (!booking) {
       console.log("Trying to find by bookingId:", bookingIdParam);
-      booking = await Booking.findOne({ bookingId: bookingIdParam });
+      booking = await Booking.findOne({ bookingId: bookingIdParam }).populate('turf');
     }
 
     if (!booking) {
@@ -220,15 +220,30 @@ export const cancelBooking = async (req, res) => {
     if (booking.paymentStatus === 'paid' && booking.paidAmount > 0) {
       console.log("Creating automatic refund request for amount:", refundData.refundAmount);
       // Create automatic refund request (user-initiated)
-      await Refund.create({
+      const refundDataToCreate = {
         booking: booking._id,
         user: booking.user,
+        admin: booking.turf.owner, // Set turf owner as admin
         reason: "user_initiated",
         description: refundData.policyNote,
         amount: refundData.refundAmount,
         status: refundData.refundAmount > 0 ? "PENDING" : "PROCESSED"
-      });
-      console.log("Refund request created successfully");
+      };
+      
+      // If upiDetails are provided in req.body, add them
+      if (req.body.upiDetails) {
+        refundDataToCreate.upiDetails = {
+          upiId: req.body.upiDetails.upiId,
+          upiName: req.body.upiDetails.upiName,
+          upiNote: req.body.upiDetails.upiNote
+        };
+      }
+      
+      const refund = await Refund.create(refundDataToCreate);
+      console.log("Refund request created successfully:", refund._id);
+      
+      // Send the refund in response as well
+      res.locals.refund = refund;
     }
 
     // Send notifications
@@ -249,11 +264,18 @@ export const cancelBooking = async (req, res) => {
       }
     }
 
-    res.json({
+    const responseData = {
       success: true,
       message: "Booking cancelled successfully",
       booking
-    });
+    };
+    
+    // If we created a refund, include it in the response
+    if (res.locals.refund) {
+      responseData.refund = res.locals.refund;
+    }
+    
+    res.json(responseData);
   } catch (err) {
     console.error("Cancel Booking Error:", err);
     res.status(500).json({ error: "Server Error", details: err.message });
@@ -268,18 +290,19 @@ export const requestRefund = async (req, res) => {
     console.log("Request Refund - Body:", req.body);
     console.log("Request Refund - User:", req.user?._id);
     
+    const { bookingId: bookingIdParam, reason, description, amount } = req.body;
+    
     // Try to find by _id first (if it looks like ObjectId), then by bookingId
     let booking;
-    const bookingIdParam = req.body.bookingId;
     
     if (/^[0-9a-fA-F]{24}$/.test(bookingIdParam)) {
       console.log("Trying to find by _id:", bookingIdParam);
-      booking = await Booking.findById(bookingIdParam);
+      booking = await Booking.findById(bookingIdParam).populate('turf');
     }
     
     if (!booking) {
       console.log("Trying to find by bookingId:", bookingIdParam);
-      booking = await Booking.findOne({ bookingId: bookingIdParam });
+      booking = await Booking.findOne({ bookingId: bookingIdParam }).populate('turf');
     }
 
     if (!booking) {
@@ -293,9 +316,9 @@ export const requestRefund = async (req, res) => {
     const requestUserId = req.user._id.toString();
     const userRole = req.user.role;
     
-    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole));
+    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole));
     
-    if (!(bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole))) {
+    if (!(bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole))) {
       console.log("Authorization check FAILED!");
       return res.status(403).json({ error: "Not authorized" });
     }
@@ -321,8 +344,9 @@ export const requestRefund = async (req, res) => {
     const refundAmount = amount || booking.paidAmount || 0;
 
     const refund = await Refund.create({
-      booking: bookingId,
+      booking: booking._id,
       user: booking.user,
+      admin: booking.turf.owner, // Set the turf owner as admin
       reason,
       description,
       amount: refundAmount,
@@ -337,6 +361,98 @@ export const requestRefund = async (req, res) => {
     });
   } catch (err) {
     console.error("Request Refund Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+// @desc    Get Refunds for Admin
+// @route   GET /api/refunds/admin
+// @access  Private (Admin/Superadmin)
+export const getRefundsByAdmin = async (req, res) => {
+  try {
+    console.log("=== getRefundsByAdmin ===");
+    console.log("User:", req.user);
+    
+    const { status, page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = {};
+    
+    // Only filter by admin if user is not superadmin
+    if (req.user.role !== 'superadmin') {
+      query.admin = req.user._id;
+    }
+    
+    // Only add status filter if provided and not "all"
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    console.log("Query:", query);
+
+    // Minimal populate to avoid errors
+    const refunds = await Refund.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const totalCount = await Refund.countDocuments(query);
+
+    console.log("Refunds count:", refunds.length);
+
+    res.json({
+      success: true,
+      refunds,
+      total: totalCount,
+      pages: Math.ceil(totalCount / limit),
+      currentPage: parseInt(page)
+    });
+  } catch (err) {
+    console.error("Get Admin Refunds Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to load refunds",
+      details: err.message
+    });
+  }
+};
+
+// @desc    Submit UPI Details for Refund
+// @route   POST /api/refunds/:refundId/upi
+// @access  Private
+export const submitUPIDetails = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const { upiId, upiName, upiNote } = req.body;
+    
+    const refund = await Refund.findById(refundId);
+    
+    if (!refund) {
+      return res.status(404).json({ error: "Refund not found" });
+    }
+    
+    // Check if user is the owner of the refund or admin
+    if (refund.user.toString() !== req.user._id.toString() && 
+        !["admin", "superadmin"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+    
+    // Update UPI details
+    refund.upiDetails = {
+      upiId,
+      upiName,
+      upiNote
+    };
+    
+    await refund.save();
+    
+    res.json({
+      success: true,
+      message: "UPI details submitted successfully",
+      refund
+    });
+  } catch (err) {
+    console.error("Submit UPI Details Error:", err);
     res.status(500).json({ error: "Server Error" });
   }
 };
@@ -357,7 +473,7 @@ export const getRefundStatus = async (req, res) => {
     // Check ownership or admin
     if (req.user.role !== 'superadmin' && 
         req.user.role !== 'admin' && 
-        refund.user.toString() !== req.user.id) {
+        refund.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
@@ -394,7 +510,7 @@ export const processRefund = async (req, res) => {
 
     if (action === "APPROVE") {
       refund.status = "PROCESSED";
-      refund.processedBy = req.user.id;
+      refund.processedBy = req.user._id;
       refund.processedAt = new Date();
       if (paymentGatewayRefundId) {
         refund.paymentGatewayRefundId = paymentGatewayRefundId;
@@ -408,7 +524,7 @@ export const processRefund = async (req, res) => {
       }
       refund.status = "REJECTED";
       refund.rejectionReason = rejectionReason;
-      refund.processedBy = req.user.id;
+      refund.processedBy = req.user._id;
       refund.processedAt = new Date();
     } else {
       return res.status(400).json({ error: "Invalid action" });
@@ -459,7 +575,11 @@ export const getAllRefunds = async (req, res) => {
     const [refunds, totalCount] = await Promise.all([
       Refund.find(query)
         .populate("user", "name email phone")
-        .populate("booking", "bookingId date startTime turf")
+        .populate({ 
+          path: "booking", 
+          select: "bookingId date startTime turf",
+          populate: { path: "turf", select: "name location" }
+        })
         .populate("processedBy", "name email")
         .sort("-createdAt")
         .skip(skip)
@@ -485,8 +605,12 @@ export const getAllRefunds = async (req, res) => {
 // @access  Private
 export const getMyRefunds = async (req, res) => {
   try {
-    const refunds = await Refund.find({ user: req.user.id })
-      .populate("booking", "bookingId date startTime turf")
+    const refunds = await Refund.find({ user: req.user._id })
+      .populate({ 
+        path: "booking", 
+        select: "bookingId date startTime turf",
+        populate: { path: "turf", select: "name location" }
+      })
       .sort("-createdAt");
 
     res.json({

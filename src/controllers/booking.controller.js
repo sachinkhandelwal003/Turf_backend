@@ -969,6 +969,49 @@ export const cancelMyBooking = async (req, res) => {
   }
 };
 
+// @desc    Mark booking as fully paid (admin only)
+// @route   POST /api/bookings/:id/mark-fully-paid
+// @access  Private (Admin/Superadmin)
+export const markAsFullyPaid = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id).populate("turf");
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // Check authorization
+    if (req.user.role !== "superadmin" && booking.turf.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    // If already fully paid, return early
+    if (booking.paidAmount >= booking.totalAmount) {
+      return res.json({
+        success: true,
+        message: "Booking is already fully paid",
+        booking
+      });
+    }
+
+    // Update booking to fully paid
+    booking.paidAmount = booking.totalAmount;
+    booking.balanceAmount = 0;
+    booking.paymentStatus = "paid";
+    booking.paymentStrategy = "full";
+    await booking.save();
+
+    res.json({
+      success: true,
+      message: "Booking marked as fully paid",
+      booking
+    });
+  } catch (err) {
+    console.error("Mark as Fully Paid Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
 // @desc    Delete a booking
 // @route   DELETE /api/bookings/:id
 // @access  Private (Admin/Superadmin)

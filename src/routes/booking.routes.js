@@ -11,6 +11,7 @@ import {
   checkAvailability,
   deleteBooking,
   getCheckoutDetails,
+  markAsFullyPaid,
 } from "../controllers/booking.controller.js";
 import {
   getRefundPreview,
@@ -42,5 +43,6 @@ router.post("/:bookingId/cancel", authMiddleware, cancelBooking);
 
 router.patch("/:id/status", authMiddleware, checkRole(["admin", "superadmin"]), updateBookingStatus);
 router.delete("/:id", authMiddleware, checkRole(["admin", "superadmin"]), deleteBooking);
+router.post("/:id/mark-fully-paid", authMiddleware, checkRole(["admin", "superadmin"]), markAsFullyPaid);
 
 export default router;

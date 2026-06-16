@@ -7,6 +7,7 @@ import Tournament from "../models/tournament.model.js";
 import Master from "../models/master.model.js";
 import Match from "../models/match.model.js";
 import Settlement from "../models/settlement.model.js";
+import Refund from "../models/refund.model.js";
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard/stats
@@ -158,9 +159,32 @@ export const getDashboardStats = async (req, res) => {
     const matchAdminShare = matchRevenue * 0.8;
     const matchSuperAdminShare = matchRevenue * 0.2;
 
-    const totalRevenue = bookingTotal + matchRevenue;
-    const totalPaidRevenue = bookingPaid + matchRevenue;
-    const totalWalletRevenue = walletRevenue + matchRevenue; 
+    // Calculate Refund Stats
+    let refundQuery = { status: "PROCESSED" };
+    if (!isSuperadmin) {
+      refundQuery.admin = userId;
+    } else if (turfId || city) {
+      const ownerIds = [...new Set(filteredTurfs.map(t => t.owner?.toString()).filter(Boolean))].map(id => new mongoose.Types.ObjectId(id));
+      refundQuery.admin = { $in: ownerIds };
+    }
+    
+    const refundStatsResult = await Refund.aggregate([
+      { $match: refundQuery },
+      {
+        $group: {
+          _id: null,
+          totalRefunded: { $sum: "$amount" },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const refundStats = refundStatsResult[0] || { totalRefunded: 0, count: 0 };
+    refundStats.totalRefunded = Number(refundStats.totalRefunded || 0);
+
+    const totalRevenue = bookingTotal + matchRevenue - refundStats.totalRefunded;
+    const totalPaidRevenue = bookingPaid + matchRevenue - refundStats.totalRefunded;
+    const totalWalletRevenue = walletRevenue + matchRevenue - refundStats.totalRefunded; 
 
     // Calculate platform split
     const platformShare = totalRevenue * 0.2; // Superadmin share (20%)
@@ -278,6 +302,10 @@ export const getDashboardStats = async (req, res) => {
           offline: offlineRevenue,
           platformShare: platformShare,
           venueShare: venueShare,
+          refunds: {
+            total: refundStats.totalRefunded,
+            count: refundStats.count
+          },
           settlements: {
             paid: totalPaidSettlements,
             pending: totalPendingSettlements,
