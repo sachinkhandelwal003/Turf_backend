@@ -5,6 +5,7 @@ import Review from "../models/review.model.js";
 import Settings from "../models/settings.model.js";
 import { sendPushAndSave } from "../utils/firebase.js";
 import { sendEmail } from "../utils/email.js";
+import { creditAdminWallet } from "./wallet.controller.js";
 
 const getTodayParts = () => {
   const now = new Date();
@@ -239,9 +240,10 @@ export const createBooking = async (req, res) => {
       await User.findByIdAndUpdate(req.user.id, { $inc: { coins: -usedCoins } });
     }
 
-    // If offline booking (confirmed), award coins
+    // If offline booking (confirmed), award coins and credit wallet
     if (finalIsOffline) {
       await awardCoins(finalUserId, booking._id);
+      await creditAdminWallet(booking._id);
     }
 
     res.status(201).json({
@@ -385,9 +387,10 @@ export const processPayment = async (req, res) => {
       await booking.save();
     }
 
-    // Award coins for each booking
+    // Award coins and credit wallet for each booking
     for (const booking of bookings) {
       await awardCoins(booking.user, booking._id);
+      await creditAdminWallet(booking._id);
       
       // 🔔 Send Booking Confirmed Notifications
       // First, populate user and turf details
@@ -1000,6 +1003,9 @@ export const markAsFullyPaid = async (req, res) => {
     booking.paymentStatus = "paid";
     booking.paymentStrategy = "full";
     await booking.save();
+    
+    // Credit admin wallet for the booking
+    await creditAdminWallet(booking._id);
 
     res.json({
       success: true,
