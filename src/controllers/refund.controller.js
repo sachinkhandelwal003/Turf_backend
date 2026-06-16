@@ -106,12 +106,22 @@ export const getRefundPreview = async (req, res) => {
     }
 
     console.log("Found booking:", booking._id, booking.bookingId);
+    console.log("Booking user (raw):", booking.user, "Type:", typeof booking.user);
+    console.log("Req user:", req.user);
+    console.log("Req user _id:", req.user._id, "Type:", typeof req.user._id);
 
-    // Check ownership
-    if (booking.user.toString() !== req.user.id) {
-      console.log("Ownership check failed - booking user:", booking.user.toString(), "req user:", req.user.id);
+    // Check ownership OR admin/owner role
+    const bookingUserId = booking.user.toString();
+    const requestUserId = req.user._id.toString();
+    const userRole = req.user.role;
+    
+    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole));
+    
+    if (!(bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole))) {
+      console.log("Authorization check FAILED!");
       return res.status(403).json({ error: "Not authorized" });
     }
+    console.log("Authorization check PASSED!");
 
     // Check if booking is already cancelled or completed
     if (booking.status === 'cancelled' || booking.status === 'completed') {
@@ -165,12 +175,20 @@ export const cancelBooking = async (req, res) => {
     }
 
     console.log("Found booking for cancel:", booking._id, booking.bookingId);
+    console.log("Booking user (raw):", booking.user, "Type:", typeof booking.user);
+    console.log("Req user:", req.user);
+    console.log("Req user _id:", req.user._id, "Type:", typeof req.user._id);
 
     // Check ownership
-    if (booking.user.toString() !== req.user.id) {
-      console.log("Ownership check failed - booking user:", booking.user.toString(), "req user:", req.user.id);
+    const bookingUserId = booking.user.toString();
+    const requestUserId = req.user._id.toString();
+    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "Match?", bookingUserId === requestUserId);
+    
+    if (bookingUserId !== requestUserId) {
+      console.log("Ownership check FAILED!");
       return res.status(403).json({ error: "Not authorized to cancel this booking" });
     }
+    console.log("Ownership check PASSED!");
 
     // Check if it's already cancelled or completed
     if (booking.status === 'cancelled') {
@@ -247,18 +265,41 @@ export const cancelBooking = async (req, res) => {
 // @access  Private
 export const requestRefund = async (req, res) => {
   try {
-    const { bookingId, reason, description, amount } = req.body;
-
-    const booking = await Booking.findById(bookingId);
+    console.log("Request Refund - Body:", req.body);
+    console.log("Request Refund - User:", req.user?._id);
+    
+    // Try to find by _id first (if it looks like ObjectId), then by bookingId
+    let booking;
+    const bookingIdParam = req.body.bookingId;
+    
+    if (/^[0-9a-fA-F]{24}$/.test(bookingIdParam)) {
+      console.log("Trying to find by _id:", bookingIdParam);
+      booking = await Booking.findById(bookingIdParam);
+    }
+    
+    if (!booking) {
+      console.log("Trying to find by bookingId:", bookingIdParam);
+      booking = await Booking.findOne({ bookingId: bookingIdParam });
+    }
 
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Check ownership
-    if (booking.user.toString() !== req.user.id) {
+    console.log("Found booking for refund request:", booking._id, booking.bookingId);
+
+    // Check ownership OR admin/owner role
+    const bookingUserId = booking.user.toString();
+    const requestUserId = req.user._id.toString();
+    const userRole = req.user.role;
+    
+    console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole));
+    
+    if (!(bookingUserId === requestUserId || ["admin", "superadmin", "owner"].includes(userRole))) {
+      console.log("Authorization check FAILED!");
       return res.status(403).json({ error: "Not authorized" });
     }
+    console.log("Authorization check PASSED!");
 
     // Validate reason
     const validReasons = ["venue_closed", "venue_unavailable", "wrong_booking", "user_initiated", "other"];
@@ -268,7 +309,7 @@ export const requestRefund = async (req, res) => {
 
     // Check if there's already an active refund for this booking
     const existingRefund = await Refund.findOne({
-      booking: bookingId,
+      booking: booking._id,
       status: { $in: ["PENDING", "UNDER_REVIEW", "APPROVED"] }
     });
 

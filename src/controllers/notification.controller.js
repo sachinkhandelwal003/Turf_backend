@@ -98,3 +98,20 @@ export const deleteNotification = async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+// @desc    Clear all notifications for current user
+// @route   DELETE /api/notifications
+// @access  Private
+export const clearAllNotifications = async (req, res) => {
+  try {
+    await Notification.deleteMany({ user: req.user.id });
+
+    res.json({
+      success: true,
+      message: "All notifications cleared successfully"
+    });
+  } catch (error) {
+    console.error("Clear All Notifications Error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
