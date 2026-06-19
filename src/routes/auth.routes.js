@@ -22,6 +22,7 @@ import {
   deleteRole,
   createUser,
   deleteUser,
+  deleteOwnAccount,
   impersonate,
   updatePassword,
   forgotPassword,
@@ -105,6 +106,8 @@ router.put("/profile", authMiddleware, upload.fields([
 ]), updateProfile);
 router.put("/update-password", authMiddleware, updatePassword);
 router.post("/update-fcm", authMiddleware, updateFCM);
+// User self-delete account
+router.delete("/account", authMiddleware, deleteOwnAccount);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkAnyPermission(["manage_users", "manage_permissions"]), getAllUsers);

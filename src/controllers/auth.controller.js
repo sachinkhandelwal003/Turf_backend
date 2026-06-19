@@ -1297,3 +1297,19 @@ export const updateFCM = async (req, res) => {
     res.status(500).json({ success: false, msg: "Internal server error" });
   }
 };
+
+// DELETE OWN ACCOUNT (User self-delete)
+export const deleteOwnAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    await user.deleteOne();
+    res.json({ success: true, msg: "Your account has been deleted successfully" });
+  } catch (err) {
+    console.error("Delete Account Error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
