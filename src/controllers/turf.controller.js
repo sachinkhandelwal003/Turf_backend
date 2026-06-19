@@ -139,6 +139,7 @@ export const createTurf = async (req, res) => {
         return {
           ...config,
           pricePerHour: Number(config.pricePerHour || 0),
+          maxPlayers: Number(config.maxPlayers || 10), // Default 10
           images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
             ? config.slotPricings.filter(sp => sp.price > 0).map(sp => ({ ...sp, price: Number(sp.price) }))
@@ -199,6 +200,13 @@ export const updateTurf = async (req, res) => {
     }
 
     const body = { ...req.body };
+
+    // Prevent non-superadmins from modifying status and approval fields
+    if (req.user.role !== 'superadmin') {
+      delete body.status;
+      delete body.approvedBy;
+      delete body.approvedAt;
+    }
 
     if (body.interestToHost !== undefined) {
       body.interestToHost = body.interestToHost === 'true' || body.interestToHost === true;
@@ -286,6 +294,7 @@ export const updateTurf = async (req, res) => {
         return {
           ...config,
           pricePerHour: Number(config.pricePerHour || 0),
+          maxPlayers: Number(config.maxPlayers || 10), // Default 10
           images: sportImages,
           slotPricings: Array.isArray(config.slotPricings) 
             ? config.slotPricings.filter(sp => sp.price > 0).map(sp => ({ ...sp, price: Number(sp.price) }))
@@ -573,10 +582,9 @@ export const updateTurfStatus = async (req, res) => {
       return res.status(404).json({ error: "Turf not found" });
     }
 
-    // Only superadmin can approve ANY turf. 
-    // Admins can only update status if they own it (though usually superadmin does this)
-    if (req.user.role !== 'superadmin' && turf.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Not authorized to update this venue status" });
+    // Only superadmin can approve or decline turf status
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ error: "Not authorized: Only Super Admin can approve or decline venues" });
     }
 
     turf.status = status;
@@ -708,6 +716,7 @@ export const getTurfs = async (req, res) => {
     }
 
     const turfs = await Turf.find(query)
+      .sort("-createdAt")
       .populate("owner", "name email");
 
     res.json({

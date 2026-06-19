@@ -20,9 +20,6 @@ const walletSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for quick lookup
-walletSchema.index({ admin: 1 });
-
 const Wallet = mongoose.model("Wallet", walletSchema);
 
 export default Wallet;

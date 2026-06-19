@@ -54,6 +54,11 @@ const refundSchema = new mongoose.Schema(
       upiName: { type: String },
       upiNote: { type: String }
     },
+    userInfo: {
+      name: { type: String },
+      phone: { type: String },
+      email: { type: String }
+    },
     rejectionReason: {
       type: String,
     },

@@ -26,6 +26,10 @@ export const authMiddleware = async (req, res, next) => {
       return res.status(403).json({ msg: "Account deactivated" });
     }
 
+    // Ensure user has a default role if not set
+    if (!user.role) {
+      user.role = 'user';
+    }
     req.user = user; // store full user object
     next();
   } catch (err) {

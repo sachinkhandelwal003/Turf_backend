@@ -166,6 +166,11 @@ const turfSchema = new mongoose.Schema(
           default: 60, // Default 60 mins
         },
 
+        maxPlayers: {
+          type: Number,
+          default: 10, // Default number of players
+        },
+
         slotPricings: [
           {
             startTime: String, // e.g. "06:00"

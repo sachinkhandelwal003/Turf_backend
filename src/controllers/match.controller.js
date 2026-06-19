@@ -21,14 +21,6 @@ export const createMatch = async (req, res) => {
       isPrivate
     } = req.body;
 
-    // Validate required fields
-    if (!turf || !title || !sport || !date || !startTime || !endTime || !totalPlayersNeeded) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields"
-      });
-    }
-
     // Check if turf exists
     const turfExists = await Turf.findById(turf);
     if (!turfExists) {
@@ -46,6 +38,28 @@ export const createMatch = async (req, res) => {
       });
     }
 
+    // Get max players from sport config
+    let maxPlayersFromSport = 10;
+    if (turfExists.sportConfigs && Array.isArray(turfExists.sportConfigs)) {
+      const sportConfig = turfExists.sportConfigs.find(
+        (config) => config.sportName.toLowerCase() === sport.toLowerCase()
+      );
+      if (sportConfig && sportConfig.maxPlayers) {
+        maxPlayersFromSport = sportConfig.maxPlayers;
+      }
+    }
+
+    // If totalPlayersNeeded not provided, use sport config's maxPlayers
+    const finalTotalPlayersNeeded = totalPlayersNeeded || maxPlayersFromSport;
+
+    // Validate required fields (now totalPlayersNeeded is optional, uses default from sport config)
+    if (!turf || !title || !sport || !date || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields"
+      });
+    }
+
     const match = await Match.create({
       host: req.user.id,
       turf,
@@ -55,7 +69,7 @@ export const createMatch = async (req, res) => {
       date,
       startTime,
       endTime,
-      totalPlayersNeeded,
+      totalPlayersNeeded: finalTotalPlayersNeeded,
       pricePerPlayer,
       isPrivate,
       joinedPlayers: [{ user: req.user.id, status: "confirmed" }]

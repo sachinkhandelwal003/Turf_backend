@@ -55,7 +55,7 @@ const awardCoins = async (userId, bookingId) => {
     let coinsToAward = 0;
     if (confirmedBookingsCount === 0) {
       // First booking
-      coinsToAward = 100;
+      coinsToAward = 1000;
     } else if (confirmedBookingsCount === 1) {
       // Second booking
       coinsToAward = 50;

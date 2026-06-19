@@ -59,6 +59,7 @@ export const register = async (req, res) => {
       email,
       phone,
       password: hashedPassword,
+      role: "user",
       isVerified: false,
       verificationToken,
       verificationExpires,
@@ -1098,6 +1099,7 @@ export const googleLogin = async (req, res) => {
         name,
         email: email.toLowerCase(),
         googleId,
+        role: "user",
         profilePhoto: picture || "",
         isVerified: true,
         fcmToken: fcmToken || null,
@@ -1214,6 +1216,7 @@ export const appleLogin = async (req, res) => {
         name: userName,
         email: email ? email.toLowerCase() : `apple_${appleId}@example.com`,
         appleId,
+        role: "user",
         profilePhoto: "",
         isVerified: true, // Apple emails are already verified
         fcmToken: fcmToken || null,

@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import Booking from "../models/booking.model.js";
 import Refund from "../models/refund.model.js";
 import Settings from "../models/settings.model.js";
+import Turf from "../models/turf.model.js";
 import { sendPushAndSave } from "../utils/firebase.js";
 import { sendEmail } from "../utils/email.js";
 
@@ -223,19 +225,28 @@ export const cancelBooking = async (req, res) => {
       const refundDataToCreate = {
         booking: booking._id,
         user: booking.user,
-        admin: booking.turf.owner, // Set turf owner as admin
+        admin: booking.turf?.owner, // Set turf owner as admin (safe access)
         reason: "user_initiated",
         description: refundData.policyNote,
         amount: refundData.refundAmount,
         status: refundData.refundAmount > 0 ? "PENDING" : "PROCESSED"
       };
       
-      // If upiDetails are provided in req.body, add them
-      if (req.body.upiDetails) {
+      // If upiDetails are provided in req.body, add them safely
+      if (req.body && req.body.upiDetails) {
         refundDataToCreate.upiDetails = {
-          upiId: req.body.upiDetails.upiId,
-          upiName: req.body.upiDetails.upiName,
-          upiNote: req.body.upiDetails.upiNote
+          upiId: req.body.upiDetails.upiId || "",
+          upiName: req.body.upiDetails.upiName || "",
+          upiNote: req.body.upiDetails.upiNote || ""
+        };
+      }
+      
+      // If userInfo is provided in req.body, add it
+      if (req.body && req.body.userInfo) {
+        refundDataToCreate.userInfo = {
+          name: req.body.userInfo.name || "",
+          phone: req.body.userInfo.phone || "",
+          email: req.body.userInfo.email || ""
         };
       }
       
@@ -346,7 +357,7 @@ export const requestRefund = async (req, res) => {
     const refund = await Refund.create({
       booking: booking._id,
       user: booking.user,
-      admin: booking.turf.owner, // Set the turf owner as admin
+      admin: booking.turf?.owner, // Set the turf owner as admin (safe access)
       reason,
       description,
       amount: refundAmount,
@@ -370,35 +381,89 @@ export const requestRefund = async (req, res) => {
 // @access  Private (Admin/Superadmin)
 export const getRefundsByAdmin = async (req, res) => {
   try {
-    console.log("=== getRefundsByAdmin ===");
-    console.log("User:", req.user);
+    console.log("=== START getRefundsByAdmin ===");
+    console.log("req.user exists?", !!req.user);
+    console.log("req.user._id:", req.user?._id);
+    console.log("req.user.role (raw):", req.user?.role);
     
     const { status, page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
+    console.log("Query params:", { page, limit, status });
+    
     let query = {};
     
     // Only filter by admin if user is not superadmin
-    if (req.user.role !== 'superadmin') {
-      query.admin = req.user._id;
+    const userRole = req.user?.role || 'user';
+    if (userRole !== 'superadmin') {
+      console.log("Not superadmin, filtering for admin's refunds");
+      
+      // Find all turfs owned by this admin
+      const adminTurfs = await Turf.find({ owner: req.user._id }).select('_id');
+      const turfIds = adminTurfs.map(t => t._id);
+      console.log("Admin's turf IDs:", turfIds);
+      
+      // Find all bookings for these turfs
+      const adminBookings = await Booking.find({ turf: { $in: turfIds } }).select('_id');
+      const bookingIds = adminBookings.map(b => b._id);
+      console.log("Admin's booking IDs:", bookingIds);
+      
+      // Build query: refunds where admin is user OR booking is in admin's bookings
+      query.$or = [
+        { admin: req.user._id },
+        { booking: { $in: bookingIds } }
+      ];
     }
     
-    // Only add status filter if provided and not "all"
-    if (status && status !== "all") {
-      query.status = status;
+    // Add status filter if provided
+    if (status && status !== 'all') {
+      if (query.$or) {
+        query = {
+          $and: [
+            { $or: query.$or },
+            { status }
+          ]
+        };
+      } else {
+        query.status = status;
+      }
     }
 
-    console.log("Query:", query);
+    console.log("Final Query:", JSON.stringify(query, null, 2));
 
-    // Minimal populate to avoid errors
-    const refunds = await Refund.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    console.log("Fetching refunds...");
+    const [refunds, totalCount] = await Promise.all([
+      Refund.find(query)
+        .lean()
+        .populate({
+          path: 'user',
+          select: 'name email phone',
+          strictPopulate: false
+        })
+        .populate({ 
+          path: 'booking', 
+          select: 'bookingId date startTime turf',
+          populate: { 
+            path: 'turf', 
+            select: 'name location',
+            strictPopulate: false 
+          },
+          strictPopulate: false
+        })
+        .populate({
+          path: 'processedBy',
+          select: 'name email',
+          strictPopulate: false
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Refund.countDocuments(query)
+    ]);
 
-    const totalCount = await Refund.countDocuments(query);
-
+    console.log("✅ SUCCESS: Fetched refunds");
     console.log("Refunds count:", refunds.length);
+    console.log("Total count:", totalCount);
 
     res.json({
       success: true,
@@ -408,7 +473,9 @@ export const getRefundsByAdmin = async (req, res) => {
       currentPage: parseInt(page)
     });
   } catch (err) {
-    console.error("Get Admin Refunds Error:", err);
+    console.error("❌ getRefundsByAdmin ERROR");
+    console.error("Error stack:", err.stack);
+    console.error("Error message:", err.message);
     res.status(500).json({
       success: false,
       error: "Failed to load refunds",
@@ -497,15 +564,30 @@ export const processRefund = async (req, res) => {
 
     const refund = await Refund.findById(refundId)
       .populate("user", "name email phone fcmToken")
-      .populate("booking", "bookingId turf");
+      .populate({
+        path: "booking",
+        populate: {
+          path: "turf"
+        }
+      });
 
     if (!refund) {
       return res.status(404).json({ error: "Refund not found" });
     }
 
     // Check authorization
-    if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ error: "Not authorized" });
+    if (req.user.role !== 'superadmin') {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Verify the admin owns the turf associated with this booking
+      const turfOwner = refund.booking?.turf?.owner?.toString();
+      const userId = req.user._id.toString();
+
+      if (turfOwner !== userId) {
+        return res.status(403).json({ error: "Not authorized: You do not own the turf associated with this booking" });
+      }
     }
 
     if (action === "APPROVE") {
@@ -533,7 +615,7 @@ export const processRefund = async (req, res) => {
     await refund.save();
 
     // Send notification to user
-    if (refund.user.fcmToken) {
+    if (refund.user && refund.user.fcmToken) {
       const message = action === "APPROVE" 
         ? `Your refund of ₹${refund.amount} has been processed!`
         : `Your refund request has been rejected: ${rejectionReason}`;
@@ -570,6 +652,33 @@ export const getAllRefunds = async (req, res) => {
     let query = {};
     if (status && status !== "all") {
       query.status = status;
+    }
+
+    const userRole = req.user?.role || 'user';
+    if (userRole !== 'superadmin') {
+      // Find all turfs owned by this admin
+      const adminTurfs = await Turf.find({ owner: req.user._id }).select('_id');
+      const turfIds = adminTurfs.map(t => t._id);
+      
+      // Find all bookings for these turfs
+      const adminBookings = await Booking.find({ turf: { $in: turfIds } }).select('_id');
+      const bookingIds = adminBookings.map(b => b._id);
+      
+      const orFilter = [
+        { admin: req.user._id },
+        { booking: { $in: bookingIds } }
+      ];
+
+      if (query.status) {
+        query = {
+          $and: [
+            { status: query.status },
+            { $or: orFilter }
+          ]
+        };
+      } else {
+        query.$or = orFilter;
+      }
     }
 
     const [refunds, totalCount] = await Promise.all([
