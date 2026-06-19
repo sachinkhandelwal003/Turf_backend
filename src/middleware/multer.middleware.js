@@ -8,8 +8,8 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: "turf_bookings",
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "jfif", "svg", "pdf", "avif"],
-    transformation: [{ width: 1000, height: 1000, crop: "limit" }],
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "jfif"],
+    transformation: [{ width: 800, height: 800, crop: "limit", quality: "auto:good" }], // Auto quality, smaller dimensions
   },
 });
 
