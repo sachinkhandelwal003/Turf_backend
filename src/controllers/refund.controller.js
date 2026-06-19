@@ -110,12 +110,12 @@ export const getRefundPreview = async (req, res) => {
     console.log("Found booking:", booking._id, booking.bookingId);
     console.log("Booking user (raw):", booking.user, "Type:", typeof booking.user);
     console.log("Req user:", req.user);
-    console.log("Req user _id:", req.user._id, "Type:", typeof req.user._id);
+    console.log("Req user id:", req.user.id, "Type:", typeof req.user.id);
 
     // Check ownership OR admin/owner role
     const bookingUserId = booking.user.toString();
-    const requestUserId = req.user._id.toString();
-    const userRole = req.user.role;
+    const requestUserId = req.user.id;
+    const userRole = req.user.role || 'user';
     
     console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole));
     
@@ -179,11 +179,11 @@ export const cancelBooking = async (req, res) => {
     console.log("Found booking for cancel:", booking._id, booking.bookingId);
     console.log("Booking user (raw):", booking.user, "Type:", typeof booking.user);
     console.log("Req user:", req.user);
-    console.log("Req user _id:", req.user._id, "Type:", typeof req.user._id);
+    console.log("Req user id:", req.user.id, "Type:", typeof req.user.id);
 
     // Check ownership
     const bookingUserId = booking.user.toString();
-    const requestUserId = req.user._id.toString();
+    const requestUserId = req.user.id;
     console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "Match?", bookingUserId === requestUserId);
     
     if (bookingUserId !== requestUserId) {
@@ -324,7 +324,7 @@ export const requestRefund = async (req, res) => {
 
     // Check ownership OR admin/owner role
     const bookingUserId = booking.user.toString();
-    const requestUserId = req.user._id.toString();
+    const requestUserId = req.user.id.toString();
     const userRole = req.user.role;
     
     console.log("Comparing - Booking user:", bookingUserId, "Req user:", requestUserId, "User role:", userRole, "Match?", bookingUserId === requestUserId || ["admin", "superadmin"].includes(userRole));
@@ -383,7 +383,7 @@ export const getRefundsByAdmin = async (req, res) => {
   try {
     console.log("=== START getRefundsByAdmin ===");
     console.log("req.user exists?", !!req.user);
-    console.log("req.user._id:", req.user?._id);
+    console.log("req.user.id:", req.user?._id);
     console.log("req.user.role (raw):", req.user?.role);
     
     const { status, page = 1, limit = 10 } = req.query;
@@ -399,7 +399,7 @@ export const getRefundsByAdmin = async (req, res) => {
       console.log("Not superadmin, filtering for admin's refunds");
       
       // Find all turfs owned by this admin
-      const adminTurfs = await Turf.find({ owner: req.user._id }).select('_id');
+      const adminTurfs = await Turf.find({ owner: req.user.id }).select('_id');
       const turfIds = adminTurfs.map(t => t._id);
       console.log("Admin's turf IDs:", turfIds);
       
@@ -410,7 +410,7 @@ export const getRefundsByAdmin = async (req, res) => {
       
       // Build query: refunds where admin is user OR booking is in admin's bookings
       query.$or = [
-        { admin: req.user._id },
+        { admin: req.user.id },
         { booking: { $in: bookingIds } }
       ];
     }
@@ -499,7 +499,7 @@ export const submitUPIDetails = async (req, res) => {
     }
     
     // Check if user is the owner of the refund or admin
-    if (refund.user.toString() !== req.user._id.toString() && 
+    if (refund.user.toString() !== req.user.id.toString() && 
         !["admin", "superadmin"].includes(req.user.role)) {
       return res.status(403).json({ error: "Not authorized" });
     }
@@ -540,7 +540,7 @@ export const getRefundStatus = async (req, res) => {
     // Check ownership or admin
     if (req.user.role !== 'superadmin' && 
         req.user.role !== 'admin' && 
-        refund.user.toString() !== req.user._id.toString()) {
+        refund.user.toString() !== req.user.id.toString()) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
@@ -583,7 +583,7 @@ export const processRefund = async (req, res) => {
 
       // Verify the admin owns the turf associated with this booking
       const turfOwner = refund.booking?.turf?.owner?.toString();
-      const userId = req.user._id.toString();
+      const userId = req.user.id.toString();
 
       if (turfOwner !== userId) {
         return res.status(403).json({ error: "Not authorized: You do not own the turf associated with this booking" });
@@ -592,7 +592,7 @@ export const processRefund = async (req, res) => {
 
     if (action === "APPROVE") {
       refund.status = "PROCESSED";
-      refund.processedBy = req.user._id;
+      refund.processedBy = req.user.id;
       refund.processedAt = new Date();
       if (paymentGatewayRefundId) {
         refund.paymentGatewayRefundId = paymentGatewayRefundId;
@@ -606,7 +606,7 @@ export const processRefund = async (req, res) => {
       }
       refund.status = "REJECTED";
       refund.rejectionReason = rejectionReason;
-      refund.processedBy = req.user._id;
+      refund.processedBy = req.user.id;
       refund.processedAt = new Date();
     } else {
       return res.status(400).json({ error: "Invalid action" });
@@ -657,7 +657,7 @@ export const getAllRefunds = async (req, res) => {
     const userRole = req.user?.role || 'user';
     if (userRole !== 'superadmin') {
       // Find all turfs owned by this admin
-      const adminTurfs = await Turf.find({ owner: req.user._id }).select('_id');
+      const adminTurfs = await Turf.find({ owner: req.user.id }).select('_id');
       const turfIds = adminTurfs.map(t => t._id);
       
       // Find all bookings for these turfs
@@ -665,7 +665,7 @@ export const getAllRefunds = async (req, res) => {
       const bookingIds = adminBookings.map(b => b._id);
       
       const orFilter = [
-        { admin: req.user._id },
+        { admin: req.user.id },
         { booking: { $in: bookingIds } }
       ];
 
@@ -714,7 +714,7 @@ export const getAllRefunds = async (req, res) => {
 // @access  Private
 export const getMyRefunds = async (req, res) => {
   try {
-    const refunds = await Refund.find({ user: req.user._id })
+    const refunds = await Refund.find({ user: req.user.id })
       .populate({ 
         path: "booking", 
         select: "bookingId date startTime turf",

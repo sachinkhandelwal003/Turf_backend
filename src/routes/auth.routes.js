@@ -34,7 +34,7 @@ import {
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkAnyPermission, checkPermission, checkRole } from "../middleware/rbac.middleware.js";
-import { upload } from "../middleware/multer.middleware.js";
+import { upload, processAndUploadImages } from "../middleware/upload.middleware.js";
 import { sendPushAndSave } from "../utils/firebase.js";
 import User from "../models/auth/user.model.js";
 
@@ -100,10 +100,7 @@ router.post("/impersonate", authMiddleware, checkRole(["superadmin"]), impersona
 router.get("/profile", authMiddleware, getProfile);
 router.get("/admin-accounts", authMiddleware, checkRole(["superadmin"]), getAdminAccounts);
 router.post("/reset-password-admin", authMiddleware, checkRole(["superadmin"]), resetUserPassword);
-router.put("/profile", authMiddleware, upload.fields([
-  { name: 'profilePhoto', maxCount: 1 },
-  { name: 'coverPhoto', maxCount: 1 }
-]), updateProfile);
+router.put("/profile", authMiddleware, upload.any(), processAndUploadImages, updateProfile);
 router.put("/update-password", authMiddleware, updatePassword);
 router.post("/update-fcm", authMiddleware, updateFCM);
 // User self-delete account
@@ -111,9 +108,9 @@ router.delete("/account", authMiddleware, deleteOwnAccount);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkAnyPermission(["manage_users", "manage_permissions"]), getAllUsers);
-router.post("/users", authMiddleware, checkPermission("manage_users"), upload.single("profilePhoto"), createUser);
+router.post("/users", authMiddleware, checkPermission("manage_users"), upload.any(), processAndUploadImages, createUser);
 router.post("/users/batch", authMiddleware, checkPermission("manage_permissions"), batchUpdateUsers);
-router.put("/users/:userId/rbac", authMiddleware, checkPermission("manage_users"), upload.single("profilePhoto"), updateUserRBAC);
+router.put("/users/:userId/rbac", authMiddleware, checkPermission("manage_users"), upload.any(), processAndUploadImages, updateUserRBAC);
 router.delete("/users/:userId", authMiddleware, checkPermission("manage_users"), deleteUser);
 
 // Permission CRUD

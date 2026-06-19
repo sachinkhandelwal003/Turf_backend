@@ -9,12 +9,21 @@ export const createTournament = async (req, res) => {
     console.log("Create Tournament Request Body:", req.body);
     const body = { ...req.body };
 
-    if (req.files) {
-      if (req.files.image && req.files.image[0]) {
-        body.image = req.files.image[0].path || req.files.image[0].secure_url;
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+      
+      if (filesObj.image && filesObj.image[0]) {
+        body.image = filesObj.image[0].path || filesObj.image[0].secure_url;
       }
-      if (req.files.gallery) {
-        body.gallery = req.files.gallery.map(file => file.path || file.secure_url);
+      if (filesObj.gallery) {
+        body.gallery = filesObj.gallery.map(file => file.path || file.secure_url);
       }
     }
 
@@ -166,12 +175,21 @@ export const updateTournament = async (req, res) => {
 
     const body = { ...req.body };
     
-    if (req.files) {
-      if (req.files.image && req.files.image[0]) {
-        body.image = req.files.image[0].path || req.files.image[0].secure_url;
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+      
+      if (filesObj.image && filesObj.image[0]) {
+        body.image = filesObj.image[0].path || filesObj.image[0].secure_url;
       }
-      if (req.files.gallery) {
-        const newGallery = req.files.gallery.map(file => file.path || file.secure_url);
+      if (filesObj.gallery) {
+        const newGallery = filesObj.gallery.map(file => file.path || file.secure_url);
         
         // Handle existing gallery merging
         let finalGallery = [];

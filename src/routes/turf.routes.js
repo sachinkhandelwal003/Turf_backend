@@ -19,7 +19,7 @@ import {
   checkRole,
 } from "../middleware/rbac.middleware.js";
 
-import { upload } from "../middleware/multer.middleware.js";
+import { upload, processAndUploadImages } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
@@ -46,6 +46,7 @@ router.post(
   authMiddleware,
   checkPermission("add_venue"),
   upload.any(), // Using any() to handle dynamic sport-specific image fields
+  processAndUploadImages,
   createTurf
 );
 
@@ -54,6 +55,7 @@ router.put(
   authMiddleware,
   checkPermission("edit_venue"),
   upload.any(), // Using any() to handle dynamic sport-specific image fields
+  processAndUploadImages,
   updateTurf
 );
 

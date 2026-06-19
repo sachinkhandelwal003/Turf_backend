@@ -939,6 +939,9 @@ export const getCheckoutDetails = async (req, res) => {
 // @access  Private
 export const cancelMyBooking = async (req, res) => {
   try {
+    console.log("=== cancelMyBooking ===");
+    console.log("req.user:", req.user);
+
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
@@ -946,7 +949,7 @@ export const cancelMyBooking = async (req, res) => {
     }
 
     // Check ownership
-    if (booking.user.toString() !== req.user.id) {
+    if (!req.user?.id || !booking.user || booking.user.toString() !== req.user.id) {
       return res.status(403).json({ error: "Not authorized to cancel this booking" });
     }
 

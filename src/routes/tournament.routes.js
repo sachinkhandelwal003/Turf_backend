@@ -14,7 +14,7 @@ import {
 } from "../controllers/tournament.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/rbac.middleware.js";
-import { upload } from "../middleware/multer.middleware.js";
+import { upload, processAndUploadImages } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
@@ -26,8 +26,8 @@ router.delete("/:tournamentId/registrations/:registrationId", authMiddleware, de
 router.get("/registrations/all", authMiddleware, checkPermission("manage_tournaments"), getAllRegistrations);
 router.get("/my/all", authMiddleware, checkPermission("manage_tournaments"), getMyTournaments);
 router.post("/:id/register", authMiddleware, registerTournament);
-router.post("/", authMiddleware, checkPermission("manage_tournaments"), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), createTournament);
-router.put("/:id", authMiddleware, checkPermission("manage_tournaments"), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'gallery', maxCount: 8 }]), updateTournament);
+router.post("/", authMiddleware, checkPermission("manage_tournaments"), upload.any(), processAndUploadImages, createTournament);
+router.put("/:id", authMiddleware, checkPermission("manage_tournaments"), upload.any(), processAndUploadImages, updateTournament);
 router.delete("/:id", authMiddleware, checkPermission("manage_tournaments"), deleteTournament);
 
 // Superadmin only routes

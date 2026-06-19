@@ -362,12 +362,21 @@ export const updateProfile = async (req, res) => {
     if (name) updateData.name = name;
     if (phone) updateData.phone = phone;
 
-    if (req.files) {
-      if (req.files.profilePhoto) {
-        updateData.profilePhoto = req.files.profilePhoto[0].path || req.files.profilePhoto[0].secure_url;
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+      
+      if (filesObj.profilePhoto) {
+        updateData.profilePhoto = filesObj.profilePhoto[0].path || filesObj.profilePhoto[0].secure_url;
       }
-      if (req.files.coverPhoto) {
-        updateData.coverPhoto = req.files.coverPhoto[0].path || req.files.coverPhoto[0].secure_url;
+      if (filesObj.coverPhoto) {
+        updateData.coverPhoto = filesObj.coverPhoto[0].path || filesObj.coverPhoto[0].secure_url;
       }
     }
 
@@ -744,8 +753,19 @@ export const updateUserRBAC = async (req, res) => {
       updateData.permissions = typeof permissions === 'string' ? JSON.parse(permissions) : permissions;
     }
 
-    if (req.file) {
-      updateData.profilePhoto = req.file.path || req.file.secure_url;
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+      
+      if (filesObj.profilePhoto) {
+        updateData.profilePhoto = filesObj.profilePhoto[0].path || filesObj.profilePhoto[0].secure_url;
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -808,8 +828,19 @@ export const createUser = async (req, res) => {
       isVerified: userRole === 'admin' || userRole === 'superadmin'
     };
 
-    if (req.file) {
-      userData.profilePhoto = req.file.path || req.file.secure_url;
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+      
+      if (filesObj.profilePhoto) {
+        userData.profilePhoto = filesObj.profilePhoto[0].path || filesObj.profilePhoto[0].secure_url;
+      }
     }
 
     const user = await User.create(userData);

@@ -30,23 +30,32 @@ export const updateSettings = async (req, res) => {
       updateData.razorpay = JSON.parse(updateData.razorpay);
     }
 
-    // Handle File Uploads
-    if (req.files) {
-      if (req.files.frontendLogo) {
-        updateData.frontendLogo = req.files.frontendLogo[0].path || req.files.frontendLogo[0].secure_url;
+    // Handle File Uploads (array-based from upload.any())
+    if (req.files && Array.isArray(req.files)) {
+      // Convert array to object for easier access
+      const filesObj = {};
+      req.files.forEach(file => {
+        if (!filesObj[file.fieldname]) {
+          filesObj[file.fieldname] = [];
+        }
+        filesObj[file.fieldname].push(file);
+      });
+
+      if (filesObj.frontendLogo) {
+        updateData.frontendLogo = filesObj.frontendLogo[0].path || filesObj.frontendLogo[0].secure_url;
       } else if (req.body.frontendLogo === "") {
         updateData.frontendLogo = "";
       }
 
-      if (req.files.backendLogo) {
-        updateData.backendLogo = req.files.backendLogo[0].path || req.files.backendLogo[0].secure_url;
+      if (filesObj.backendLogo) {
+        updateData.backendLogo = filesObj.backendLogo[0].path || filesObj.backendLogo[0].secure_url;
       } else if (req.body.backendLogo === "") {
         updateData.backendLogo = "";
       }
 
-      if (req.files.image) {
+      if (filesObj.image) {
         if (!updateData.heroBanner) updateData.heroBanner = {};
-        updateData.heroBanner.image = req.files.image[0].path || req.files.image[0].secure_url;
+        updateData.heroBanner.image = filesObj.image[0].path || filesObj.image[0].secure_url;
       } else if (req.body.heroBannerImage === "") {
         if (!updateData.heroBanner) updateData.heroBanner = {};
         updateData.heroBanner.image = "";
