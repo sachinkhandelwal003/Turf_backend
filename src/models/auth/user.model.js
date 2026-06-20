@@ -85,6 +85,14 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    deleteAccountOTP: {
+      type: String,
+      default: null,
+    },
+    deleteAccountOTPExpires: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

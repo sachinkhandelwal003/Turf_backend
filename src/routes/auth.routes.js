@@ -23,6 +23,8 @@ import {
   createUser,
   deleteUser,
   deleteOwnAccount,
+  sendDeleteAccountOTP,
+  verifyDeleteAccountOTP,
   impersonate,
   updatePassword,
   forgotPassword,
@@ -105,6 +107,10 @@ router.put("/update-password", authMiddleware, updatePassword);
 router.post("/update-fcm", authMiddleware, updateFCM);
 // User self-delete account
 router.delete("/account", authMiddleware, deleteOwnAccount);
+
+// Public delete account endpoints
+router.post("/delete-account/send-otp", sendDeleteAccountOTP);
+router.post("/delete-account/verify-otp", verifyDeleteAccountOTP);
 
 // RBAC Routes
 router.get("/users", authMiddleware, checkAnyPermission(["manage_users", "manage_permissions"]), getAllUsers);

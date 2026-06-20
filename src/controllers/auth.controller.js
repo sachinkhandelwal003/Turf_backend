@@ -1344,3 +1344,80 @@ export const deleteOwnAccount = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+// Generate OTP for Account Deletion (Public)
+export const sendDeleteAccountOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, msg: "Email is required" });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ success: false, msg: "No account found with this email" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Save OTP and set expiry (10 minutes)
+    user.deleteAccountOTP = otp;
+    user.deleteAccountOTPExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    // Send OTP via email
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "GameOn India - Account Deletion OTP",
+        message: `Your OTP for account deletion is: ${otp}\nThis OTP is valid for 10 minutes.\nIf you did not request this, please ignore this email.`
+      });
+    } catch (emailErr) {
+      console.error("Failed to send deletion OTP email:", emailErr);
+    }
+
+    console.log("Delete Account OTP for", email, ":", otp);
+
+    res.json({ 
+      success: true, 
+      msg: "OTP sent to your registered email" 
+    });
+  } catch (err) {
+    console.error("Send Delete OTP Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
+
+// Verify OTP and Delete Account (Public)
+export const verifyDeleteAccountOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, msg: "Email and OTP are required" });
+    }
+
+    // Find user with valid OTP
+    const user = await User.findOne({ 
+      email: email.toLowerCase().trim(), 
+      deleteAccountOTP: otp, 
+      deleteAccountOTPExpires: { $gt: Date.now() } 
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, msg: "Invalid or expired OTP" });
+    }
+
+    // Delete the user
+    await user.deleteOne();
+
+    res.json({ 
+      success: true, 
+      msg: "Your account has been deleted successfully" 
+    });
+  } catch (err) {
+    console.error("Verify Delete OTP Error:", err);
+    res.status(500).json({ success: false, msg: "Internal server error" });
+  }
+};
