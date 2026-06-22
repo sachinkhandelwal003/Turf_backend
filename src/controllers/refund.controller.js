@@ -417,15 +417,19 @@ export const getRefundsByAdmin = async (req, res) => {
     
     // Add status filter if provided
     if (status && status !== 'all') {
+      const statusQuery = (status === 'APPROVED' || status === 'PROCESSED')
+        ? { $in: ['APPROVED', 'PROCESSED'] }
+        : status;
+
       if (query.$or) {
         query = {
           $and: [
             { $or: query.$or },
-            { status }
+            { status: statusQuery }
           ]
         };
       } else {
-        query.status = status;
+        query.status = statusQuery;
       }
     }
 
@@ -581,11 +585,12 @@ export const processRefund = async (req, res) => {
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      // Verify the admin owns the turf associated with this booking
+      // Verify the admin owns the turf associated with this booking OR is the admin associated with this refund
       const turfOwner = refund.booking?.turf?.owner?.toString();
       const userId = req.user.id.toString();
+      const refundAdmin = refund.admin?.toString();
 
-      if (turfOwner !== userId) {
+      if (turfOwner !== userId && refundAdmin !== userId) {
         return res.status(403).json({ error: "Not authorized: You do not own the turf associated with this booking" });
       }
     }
@@ -651,7 +656,10 @@ export const getAllRefunds = async (req, res) => {
 
     let query = {};
     if (status && status !== "all") {
-      query.status = status;
+      const statusQuery = (status === 'APPROVED' || status === 'PROCESSED')
+        ? { $in: ['APPROVED', 'PROCESSED'] }
+        : status;
+      query.status = statusQuery;
     }
 
     const userRole = req.user?.role || 'user';
