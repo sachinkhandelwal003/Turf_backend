@@ -34,6 +34,9 @@ const allowedOrigins = [
   "http://127.0.0.1:3005",
   "https://gameonindia.tech",
   "http://gameonindia.tech",
+  "https://gameon-india.com",
+  "http://gameon-india.com",
+  
   "http://145.223.21.134"
 ];
 
