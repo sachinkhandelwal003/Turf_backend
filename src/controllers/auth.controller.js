@@ -67,7 +67,7 @@ export const register = async (req, res) => {
     });
 
     // Send verification email
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = process.env.FRONTEND_URL || "https://gameon-india.com";
     const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
     const message = `Hi ${name},\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nThis link will expire in 30 minutes.\n\nIf you didn't create this account, please ignore this email.`;
@@ -526,8 +526,7 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     // 4. Create reset URL
-    // Use frontend URL from env or fallback to localhost
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3005";
+    const frontendUrl = process.env.FRONTEND_URL || "https://gameon-india.com";
     const resetUrl = `${frontendUrl}/ResetPassword?token=${resetToken}`;
 
     const message = `You are receiving this email because you (or someone else) have requested the reset of a password. Please click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`;
@@ -854,7 +853,7 @@ export const createUser = async (req, res) => {
 
     // --- PRO LEVEL: Send Welcome Email for Admin Accounts ---
     if (user.role === "admin" || user.role === "superadmin") {
-      const frontendUrl = process.env.FRONTEND_URL || "https://gameonindia.tech";
+      const frontendUrl = process.env.FRONTEND_URL || "https://gameon-india.com";
       const loginUrl = `${frontendUrl}/admin/login`;
 
       console.log(`Triggering welcome email for ${user.role}: ${user.email}`);
