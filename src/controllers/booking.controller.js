@@ -168,11 +168,44 @@ export const createBooking = async (req, res) => {
         return curMins < spEnd && endMins > spStart;
       });
 
+      let slotPrice = 0;
+      const basePriceForDuration = baseHourlyRate * (slotDurationMins / 60);
+
       if (customSlot) {
-        calculatedPrice += (baseHourlyRate * (slotDurationMins / 60)) + Number(customSlot.price || 0);
+        slotPrice = basePriceForDuration + Number(customSlot.price || 0);
       } else {
-        calculatedPrice += (baseHourlyRate * (slotDurationMins / 60));
+        slotPrice = basePriceForDuration;
       }
+
+      // Check if turf has an active offer
+      if (turf.offer && turf.offer.isActive) {
+        let isOfferSlot = false;
+        if (turf.offer.targetType === "all") {
+          isOfferSlot = true;
+        } else if (turf.offer.targetType === "evening") {
+          isOfferSlot = curMins >= 18 * 60; // 6 PM onwards
+        } else if (turf.offer.targetType === "custom") {
+          const offerStart = parseTimeToMinutes(turf.offer.startHour || "18:00");
+          const offerEnd = parseTimeToMinutes(turf.offer.endHour || "22:00");
+          let isMatch = curMins >= offerStart && curMins < offerEnd;
+
+          if (!isMatch && turf.offer.customRanges && turf.offer.customRanges.length > 0) {
+            isMatch = turf.offer.customRanges.some(range => {
+              const rangeStart = parseTimeToMinutes(range.startHour || "18:00");
+              const rangeEnd = parseTimeToMinutes(range.endHour || "22:00");
+              return curMins >= rangeStart && curMins < rangeEnd;
+            });
+          }
+          isOfferSlot = isMatch;
+        }
+
+        if (isOfferSlot) {
+          const discountAmt = (slotPrice * Number(turf.offer.percentage || 0)) / 100;
+          slotPrice = Math.max(0, Math.round(slotPrice - discountAmt));
+        }
+      }
+
+      calculatedPrice += slotPrice;
     });
 
     // Final price multiplied by number of courts

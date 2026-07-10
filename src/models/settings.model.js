@@ -41,6 +41,13 @@ const settingsSchema = new mongoose.Schema({
     subtitle: { type: String, default: "Premium sports venues, professional training, and competitive matches. Book your victory in seconds." },
     image: { type: String, default: "/heroimage.png" },
   },
+  offersBanner: {
+    isActive: { type: Boolean, default: true },
+    title: { type: String, default: "Weekend games, 20% off" },
+    subtitle: { type: String, default: "Across selected grounds - tap to explore" },
+    badgeText: { type: String, default: "THIS WEEK" },
+    link: { type: String, default: "/explore" }
+  },
   razorpay: {
     enabled: { type: Boolean, default: false },
     keyId: { type: String, default: "" },

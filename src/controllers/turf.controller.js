@@ -36,6 +36,7 @@ export const createTurf = async (req, res) => {
       "courts",
       "slotPricings",
       "sportConfigs",
+      "offer",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -224,6 +225,7 @@ export const updateTurf = async (req, res) => {
       "courts",
       "slotPricings",
       "sportConfigs",
+      "offer",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -619,10 +621,25 @@ export const getMyTurfs = async (req, res) => {
       .sort("-createdAt")
       .populate("owner", "name email");
 
+    const mappedTurfs = turfs.map((t) => {
+      const turfObj = t.toObject();
+      if (turfObj.offer && turfObj.offer.isActive) {
+        turfObj.offer_summary = {
+          badge_text: turfObj.offer.badgeText,
+          percent: turfObj.offer.percentage,
+          description: turfObj.offer.description,
+          strip_style: turfObj.offer.stripStyle,
+        };
+      } else {
+        turfObj.offer_summary = null;
+      }
+      return turfObj;
+    });
+
     res.json({
       success: true,
-      count: turfs.length,
-      turfs,
+      count: mappedTurfs.length,
+      turfs: mappedTurfs,
     });
   } catch (err) {
     console.error("Get My Turfs Error:", err);
@@ -719,10 +736,25 @@ export const getTurfs = async (req, res) => {
       .sort("-createdAt")
       .populate("owner", "name email");
 
+    const mappedTurfs = turfs.map((t) => {
+      const turfObj = t.toObject();
+      if (turfObj.offer && turfObj.offer.isActive) {
+        turfObj.offer_summary = {
+          badge_text: turfObj.offer.badgeText,
+          percent: turfObj.offer.percentage,
+          description: turfObj.offer.description,
+          strip_style: turfObj.offer.stripStyle,
+        };
+      } else {
+        turfObj.offer_summary = null;
+      }
+      return turfObj;
+    });
+
     res.json({
       success: true,
-      count: turfs.length,
-      turfs,
+      count: mappedTurfs.length,
+      turfs: mappedTurfs,
     });
   } catch (err) {
     console.error("Get Turfs Error:", err);
@@ -771,13 +803,28 @@ export const searchTurfsByName = async (req, res) => {
     }
 
     const turfs = await Turf.find(query).select(
-      "name location images sports pricePerHour rating"
+      "name location images sports pricePerHour rating offer"
     );
+
+    const mappedTurfs = turfs.map((t) => {
+      const turfObj = t.toObject();
+      if (turfObj.offer && turfObj.offer.isActive) {
+        turfObj.offer_summary = {
+          badge_text: turfObj.offer.badgeText,
+          percent: turfObj.offer.percentage,
+          description: turfObj.offer.description,
+          strip_style: turfObj.offer.stripStyle,
+        };
+      } else {
+        turfObj.offer_summary = null;
+      }
+      return turfObj;
+    });
 
     res.json({
       success: true,
-      count: turfs.length,
-      turfs,
+      count: mappedTurfs.length,
+      turfs: mappedTurfs,
     });
   } catch (err) {
     console.error("Search Turfs Error:", err);
@@ -813,14 +860,41 @@ export const getTurfById = async (
     const siblingTurfs = await Turf.find({
       owner: turf.owner._id,
       _id: { $ne: turf._id }
-    }).select("name sports images location status isActive");
+    }).select("name sports images location status isActive offer");
+
+    const mappedSiblingTurfs = siblingTurfs.map((t) => {
+      const turfObj = t.toObject();
+      if (turfObj.offer && turfObj.offer.isActive) {
+        turfObj.offer_summary = {
+          badge_text: turfObj.offer.badgeText,
+          percent: turfObj.offer.percentage,
+          description: turfObj.offer.description,
+          strip_style: turfObj.offer.stripStyle,
+        };
+      } else {
+        turfObj.offer_summary = null;
+      }
+      return turfObj;
+    });
 
     console.log(`Found ${siblingTurfs.length} siblings for owner ${turf.owner._id}`);
 
+    const turfObj = turf.toObject();
+    if (turfObj.offer && turfObj.offer.isActive) {
+      turfObj.offer_summary = {
+        badge_text: turfObj.offer.badgeText,
+        percent: turfObj.offer.percentage,
+        description: turfObj.offer.description,
+        strip_style: turfObj.offer.stripStyle,
+      };
+    } else {
+      turfObj.offer_summary = null;
+    }
+
     res.json({
       success: true,
-      turf,
-      siblingTurfs
+      turf: turfObj,
+      siblingTurfs: mappedSiblingTurfs,
     });
   } catch (err) {
     console.error("Get Turf Error:", err);
