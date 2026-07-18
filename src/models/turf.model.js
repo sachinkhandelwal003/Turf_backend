@@ -292,6 +292,75 @@ const turfSchema = new mongoose.Schema(
           endHour: { type: String, default: "22:00" },
         }
       ],
+      fundingModel: {
+        type: String,
+        enum: ["platform", "co-funded"],
+        default: "platform",
+      },
+      gameonPct: {
+        type: Number,
+        default: 100,
+      },
+      venuePct: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    superAdminOffer: {
+      isActive: {
+        type: Boolean,
+        default: false,
+      },
+      percentage: {
+        type: Number,
+        default: 0,
+      },
+      badgeText: {
+        type: String,
+        default: "",
+      },
+      description: {
+        type: String,
+        default: "",
+      },
+      stripStyle: {
+        type: String,
+        enum: ["green", "white"],
+        default: "green",
+      },
+      targetType: {
+        type: String,
+        enum: ["all", "evening", "custom"],
+        default: "all",
+      },
+      startHour: {
+        type: String,
+        default: "18:00",
+      },
+      endHour: {
+        type: String,
+        default: "22:00",
+      },
+      customRanges: [
+        {
+          startHour: { type: String, default: "18:00" },
+          endHour: { type: String, default: "22:00" },
+        }
+      ],
+      fundingModel: {
+        type: String,
+        enum: ["platform", "co-funded"],
+        default: "platform",
+      },
+      gameonPct: {
+        type: Number,
+        default: 100,
+      },
+      venuePct: {
+        type: Number,
+        default: 0,
+      },
     },
 
     isActive: {

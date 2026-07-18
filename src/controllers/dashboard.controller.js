@@ -95,6 +95,18 @@ export const getDashboardStats = async (req, res) => {
           },
           wallet: { 
             $sum: { $cond: [{ $ne: ["$isOffline", true] }, { $ifNull: ["$totalAmount", "$price"] }, 0] } 
+          },
+          ownerShareSum: { $sum: { $ifNull: ["$ownerShare", { $multiply: [{ $ifNull: ["$price", "$totalAmount"] }, 0.8] }] } },
+          adminCommissionSum: { $sum: { $ifNull: ["$adminCommission", { $multiply: [{ $ifNull: ["$price", "$totalAmount"] }, 0.2] }] } },
+          convenienceFeeSum: { $sum: { $ifNull: ["$convenienceFee", 0] } },
+          walletOwnerShareSum: { 
+            $sum: { 
+              $cond: [
+                { $ne: ["$isOffline", true] }, 
+                { $ifNull: ["$ownerShare", { $multiply: [{ $ifNull: ["$price", "$totalAmount"] }, 0.8] }] }, 
+                0
+              ] 
+            } 
           }
         } 
       }
@@ -106,6 +118,10 @@ export const getDashboardStats = async (req, res) => {
     const bookingPaid = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].paid : 0;
     const offlineRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].offline : 0;
     const walletRevenue = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].wallet : 0;
+    const bookingOwnerShare = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].ownerShareSum : 0;
+    const bookingAdminCommission = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].adminCommissionSum : 0;
+    const bookingConvenienceFee = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].convenienceFeeSum : 0;
+    const walletOwnerShare = bookingRevenueResult.length > 0 ? bookingRevenueResult[0].walletOwnerShareSum : 0;
 
     // Calculate Tournament Revenue using Aggregation (More efficient than forEach)
     let tournamentRevenue = 0;
@@ -186,9 +202,9 @@ export const getDashboardStats = async (req, res) => {
     const totalPaidRevenue = bookingPaid + matchRevenue - refundStats.totalRefunded;
     const totalWalletRevenue = walletRevenue + matchRevenue - refundStats.totalRefunded; 
 
-    // Calculate platform split
-    const platformShare = totalRevenue * 0.2; // Superadmin share (20%)
-    const venueShare = totalRevenue * 0.8; // Venue owners share (80%)
+    // Calculate platform split dynamically
+    const platformShare = bookingAdminCommission + bookingConvenienceFee + matchSuperAdminShare;
+    const venueShare = bookingOwnerShare + matchAdminShare - refundStats.totalRefunded;
 
     // Calculate settlement amounts
     let settlementQuery = {};
@@ -231,7 +247,7 @@ export const getDashboardStats = async (req, res) => {
 
     const totalPaidSettlements = settlementsResult.length > 0 ? settlementsResult[0].totalPaid : 0;
     const totalPendingSettlements = settlementsResult.length > 0 ? settlementsResult[0].totalPending : 0;
-    const pendingToSettle = (totalWalletRevenue * 0.8) - totalPaidSettlements;
+    const pendingToSettle = walletOwnerShare - totalPaidSettlements;
 
     console.log('💵 Final Revenue Breakdown:', {
       bookingTotal,

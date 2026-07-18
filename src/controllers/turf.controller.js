@@ -13,6 +13,40 @@ const formatMinutes = (mins) =>
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const mapOfferSummary = (turfObj) => {
+  let totalPercent = 0;
+  let isOfferActive = false;
+  let stripStyle = "green";
+
+  if (turfObj.offer && turfObj.offer.isActive) {
+    totalPercent += Number(turfObj.offer.percentage || 0);
+    isOfferActive = true;
+    if (turfObj.offer.stripStyle === "white") {
+      stripStyle = "white";
+    }
+  }
+
+  if (turfObj.superAdminOffer && turfObj.superAdminOffer.isActive) {
+    totalPercent += Number(turfObj.superAdminOffer.percentage || 0);
+    isOfferActive = true;
+    if (turfObj.superAdminOffer.stripStyle === "green") {
+      stripStyle = "green";
+    }
+  }
+
+  if (isOfferActive && totalPercent > 0) {
+    turfObj.offer_summary = {
+      badge_text: `${totalPercent}% OFF • Coupon Applied`,
+      percent: totalPercent,
+      description: `Offer on this ground - ${totalPercent}% OFF`,
+      strip_style: stripStyle,
+    };
+  } else {
+    turfObj.offer_summary = null;
+  }
+  return turfObj;
+};
+
 // ==============================
 // CREATE TURF
 // ==============================
@@ -37,6 +71,7 @@ export const createTurf = async (req, res) => {
       "slotPricings",
       "sportConfigs",
       "offer",
+      "superAdminOffer",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -226,6 +261,7 @@ export const updateTurf = async (req, res) => {
       "slotPricings",
       "sportConfigs",
       "offer",
+      "superAdminOffer",
     ];
 
     fieldsToParse.forEach((field) => {
@@ -622,18 +658,7 @@ export const getMyTurfs = async (req, res) => {
       .populate("owner", "name email");
 
     const mappedTurfs = turfs.map((t) => {
-      const turfObj = t.toObject();
-      if (turfObj.offer && turfObj.offer.isActive) {
-        turfObj.offer_summary = {
-          badge_text: turfObj.offer.badgeText,
-          percent: turfObj.offer.percentage,
-          description: turfObj.offer.description,
-          strip_style: turfObj.offer.stripStyle,
-        };
-      } else {
-        turfObj.offer_summary = null;
-      }
-      return turfObj;
+      return mapOfferSummary(t.toObject());
     });
 
     res.json({
@@ -737,18 +762,7 @@ export const getTurfs = async (req, res) => {
       .populate("owner", "name email");
 
     const mappedTurfs = turfs.map((t) => {
-      const turfObj = t.toObject();
-      if (turfObj.offer && turfObj.offer.isActive) {
-        turfObj.offer_summary = {
-          badge_text: turfObj.offer.badgeText,
-          percent: turfObj.offer.percentage,
-          description: turfObj.offer.description,
-          strip_style: turfObj.offer.stripStyle,
-        };
-      } else {
-        turfObj.offer_summary = null;
-      }
-      return turfObj;
+      return mapOfferSummary(t.toObject());
     });
 
     res.json({
@@ -803,22 +817,11 @@ export const searchTurfsByName = async (req, res) => {
     }
 
     const turfs = await Turf.find(query).select(
-      "name location images sports pricePerHour rating offer"
+      "name location images sports pricePerHour rating offer superAdminOffer"
     );
 
     const mappedTurfs = turfs.map((t) => {
-      const turfObj = t.toObject();
-      if (turfObj.offer && turfObj.offer.isActive) {
-        turfObj.offer_summary = {
-          badge_text: turfObj.offer.badgeText,
-          percent: turfObj.offer.percentage,
-          description: turfObj.offer.description,
-          strip_style: turfObj.offer.stripStyle,
-        };
-      } else {
-        turfObj.offer_summary = null;
-      }
-      return turfObj;
+      return mapOfferSummary(t.toObject());
     });
 
     res.json({
@@ -860,36 +863,15 @@ export const getTurfById = async (
     const siblingTurfs = await Turf.find({
       owner: turf.owner._id,
       _id: { $ne: turf._id }
-    }).select("name sports images location status isActive offer");
+    }).select("name sports images location status isActive offer superAdminOffer");
 
     const mappedSiblingTurfs = siblingTurfs.map((t) => {
-      const turfObj = t.toObject();
-      if (turfObj.offer && turfObj.offer.isActive) {
-        turfObj.offer_summary = {
-          badge_text: turfObj.offer.badgeText,
-          percent: turfObj.offer.percentage,
-          description: turfObj.offer.description,
-          strip_style: turfObj.offer.stripStyle,
-        };
-      } else {
-        turfObj.offer_summary = null;
-      }
-      return turfObj;
+      return mapOfferSummary(t.toObject());
     });
 
     console.log(`Found ${siblingTurfs.length} siblings for owner ${turf.owner._id}`);
 
-    const turfObj = turf.toObject();
-    if (turfObj.offer && turfObj.offer.isActive) {
-      turfObj.offer_summary = {
-        badge_text: turfObj.offer.badgeText,
-        percent: turfObj.offer.percentage,
-        description: turfObj.offer.description,
-        strip_style: turfObj.offer.stripStyle,
-      };
-    } else {
-      turfObj.offer_summary = null;
-    }
+    const turfObj = mapOfferSummary(turf.toObject());
 
     res.json({
       success: true,

@@ -149,6 +149,9 @@ export const createBooking = async (req, res) => {
 
     // Calculate dynamic price based on slots
     let calculatedPrice = 0;
+    let calculatedOriginalPrice = 0;
+    let totalGameonDiscountAccumulated = 0;
+    let totalVenueDiscountAccumulated = 0;
     const dayName = new Date(date).toLocaleDateString("en-US", { weekday: "long" });
     const dayRate = turf.rates?.find(r => r.day === dayName)?.price;
     // Fix: Ensure we don't pick up 0 as the rate if pricePerHour is available
@@ -177,13 +180,19 @@ export const createBooking = async (req, res) => {
         slotPrice = basePriceForDuration;
       }
 
-      // Check if turf has an active offer
+      calculatedOriginalPrice += slotPrice;
+
+      let totalDiscountPercent = 0;
+      let slotGameonDiscountAmt = 0;
+      let slotVenueDiscountAmt = 0;
+
+      // 1. Admin Offer Check
       if (turf.offer && turf.offer.isActive) {
-        let isOfferSlot = false;
+        let isAdminOfferSlot = false;
         if (turf.offer.targetType === "all") {
-          isOfferSlot = true;
+          isAdminOfferSlot = true;
         } else if (turf.offer.targetType === "evening") {
-          isOfferSlot = curMins >= 18 * 60; // 6 PM onwards
+          isAdminOfferSlot = curMins >= 18 * 60; // 6 PM onwards
         } else if (turf.offer.targetType === "custom") {
           const offerStart = parseTimeToMinutes(turf.offer.startHour || "18:00");
           const offerEnd = parseTimeToMinutes(turf.offer.endHour || "22:00");
@@ -196,13 +205,77 @@ export const createBooking = async (req, res) => {
               return curMins >= rangeStart && curMins < rangeEnd;
             });
           }
-          isOfferSlot = isMatch;
+          isAdminOfferSlot = isMatch;
         }
 
-        if (isOfferSlot) {
-          const discountAmt = (slotPrice * Number(turf.offer.percentage || 0)) / 100;
-          slotPrice = Math.max(0, Math.round(slotPrice - discountAmt));
+        if (isAdminOfferSlot) {
+          const percentage = Number(turf.offer.percentage || 0);
+          totalDiscountPercent += percentage;
+          const slotAdminDiscount = (slotPrice * percentage) / 100;
+          if (turf.offer.fundingModel === "co-funded") {
+            const gameonPct = Number(turf.offer.gameonPct) || 0;
+            const venuePct = Number(turf.offer.venuePct) || 0;
+            const combinedPct = gameonPct + venuePct;
+            if (combinedPct > 0) {
+              slotGameonDiscountAmt += slotAdminDiscount * (gameonPct / combinedPct);
+              slotVenueDiscountAmt += slotAdminDiscount * (venuePct / combinedPct);
+            } else {
+              slotGameonDiscountAmt += slotAdminDiscount;
+            }
+          } else {
+            slotGameonDiscountAmt += slotAdminDiscount;
+          }
         }
+      }
+
+      // 2. Super Admin Offer Check
+      if (turf.superAdminOffer && turf.superAdminOffer.isActive) {
+        let isSuperAdminOfferSlot = false;
+        if (turf.superAdminOffer.targetType === "all") {
+          isSuperAdminOfferSlot = true;
+        } else if (turf.superAdminOffer.targetType === "evening") {
+          isSuperAdminOfferSlot = curMins >= 18 * 60; // 6 PM onwards
+        } else if (turf.superAdminOffer.targetType === "custom") {
+          const offerStart = parseTimeToMinutes(turf.superAdminOffer.startHour || "18:00");
+          const offerEnd = parseTimeToMinutes(turf.superAdminOffer.endHour || "22:00");
+          let isMatch = curMins >= offerStart && curMins < offerEnd;
+
+          if (!isMatch && turf.superAdminOffer.customRanges && turf.superAdminOffer.customRanges.length > 0) {
+            isMatch = turf.superAdminOffer.customRanges.some(range => {
+              const rangeStart = parseTimeToMinutes(range.startHour || "18:00");
+              const rangeEnd = parseTimeToMinutes(range.endHour || "22:00");
+              return curMins >= rangeStart && curMins < rangeEnd;
+            });
+          }
+          isSuperAdminOfferSlot = isMatch;
+        }
+
+        if (isSuperAdminOfferSlot) {
+          const percentage = Number(turf.superAdminOffer.percentage || 0);
+          totalDiscountPercent += percentage;
+          const slotSuperDiscount = (slotPrice * percentage) / 100;
+          if (turf.superAdminOffer.fundingModel === "co-funded") {
+            const gameonPct = Number(turf.superAdminOffer.gameonPct) || 0;
+            const venuePct = Number(turf.superAdminOffer.venuePct) || 0;
+            const combinedPct = gameonPct + venuePct;
+            if (combinedPct > 0) {
+              slotGameonDiscountAmt += slotSuperDiscount * (gameonPct / combinedPct);
+              slotVenueDiscountAmt += slotSuperDiscount * (venuePct / combinedPct);
+            } else {
+              slotGameonDiscountAmt += slotSuperDiscount;
+            }
+          } else {
+            slotGameonDiscountAmt += slotSuperDiscount;
+          }
+        }
+      }
+
+      totalGameonDiscountAccumulated += slotGameonDiscountAmt;
+      totalVenueDiscountAccumulated += slotVenueDiscountAmt;
+
+      if (totalDiscountPercent > 0) {
+        const discountAmt = (slotPrice * totalDiscountPercent) / 100;
+        slotPrice = Math.max(0, Math.round(slotPrice - discountAmt));
       }
 
       calculatedPrice += slotPrice;
@@ -240,6 +313,20 @@ export const createBooking = async (req, res) => {
 
     const bookingId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
+    const finalOriginalPrice = calculatedOriginalPrice * (courts.length || 1);
+    const calculatedDiscountAmount = Math.max(0, finalOriginalPrice - finalPrice);
+    const discountPercentVal = finalOriginalPrice > 0 ? Math.round((calculatedDiscountAmount / finalOriginalPrice) * 100) : 0;
+
+    const finalGameonDiscount = totalGameonDiscountAccumulated * (courts.length || 1);
+    const finalVenueDiscount = totalVenueDiscountAccumulated * (courts.length || 1);
+
+    // Default splits are: Venue (owner) gets 80%, GameOn (admin) gets 20%
+    const baseOwnerShare = finalOriginalPrice * 0.8;
+    const baseAdminCommission = finalOriginalPrice * 0.2;
+
+    const ownerShare = Math.max(0, Math.round(baseOwnerShare - finalVenueDiscount));
+    const adminCommission = Math.max(0, Math.round(baseAdminCommission - finalGameonDiscount));
+
     const bookingData = {
       turf: turfId,
       user: finalUserId,
@@ -249,6 +336,11 @@ export const createBooking = async (req, res) => {
       endTime: maxEnd,
       slots: slotList,
       price: finalPrice,
+      originalPrice: finalOriginalPrice,
+      discountAmount: calculatedDiscountAmount,
+      discountPercentage: discountPercentVal,
+      ownerShare,
+      adminCommission,
       courts,
       bookingId,
       totalAmount,
