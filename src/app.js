@@ -17,6 +17,7 @@ import matchRoutes from "./routes/match.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import refundRoutes from "./routes/refund.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
+import supportRoutes from "./routes/support.routes.js";
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use("/api/matches", matchRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/refunds", refundRoutes);
 app.use("/api/wallet", walletRoutes);
+app.use("/api/support", supportRoutes);
 
 // --- Error Handler ---
 app.use((err, req, res, next) => {
