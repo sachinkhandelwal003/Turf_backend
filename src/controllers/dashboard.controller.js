@@ -397,7 +397,7 @@ export const getAppHomeData = async (req, res) => {
       Turf.find({ status: "approved" })
         .sort("-rating -createdAt")
         .limit(10)
-        .select("name location pricePerHour rating images sports sportConfigs"),
+        .select("name location pricePerHour rating images sports sportConfigs offer superAdminOffer"),
       Tournament.find({ approvalStatus: "approved", status: { $ne: "finished" } })
         .sort("startDate")
         .limit(6)
@@ -420,6 +420,47 @@ export const getAppHomeData = async (req, res) => {
         return img;
       }
       return "";
+    };
+
+    const mapOfferSummary = (turfObj) => {
+      let totalPercent = 0;
+      let isOfferActive = false;
+      let stripStyle = "green";
+      let badgeText = "";
+
+      if (turfObj.offer && turfObj.offer.isActive) {
+        totalPercent += Number(turfObj.offer.percentage || 0);
+        isOfferActive = true;
+        if (turfObj.offer.stripStyle === "white") {
+          stripStyle = "white";
+        }
+        if (typeof turfObj.offer.badgeText === "string" && turfObj.offer.badgeText.trim()) {
+          badgeText = turfObj.offer.badgeText.trim();
+        }
+      }
+
+      if (turfObj.superAdminOffer && turfObj.superAdminOffer.isActive) {
+        totalPercent += Number(turfObj.superAdminOffer.percentage || 0);
+        isOfferActive = true;
+        if (turfObj.superAdminOffer.stripStyle === "green") {
+          stripStyle = "green";
+        }
+        if (!badgeText && typeof turfObj.superAdminOffer.badgeText === "string" && turfObj.superAdminOffer.badgeText.trim()) {
+          badgeText = turfObj.superAdminOffer.badgeText.trim();
+        }
+      }
+
+      if (isOfferActive && totalPercent > 0) {
+        turfObj.offer_summary = {
+          badge_text: badgeText ? badgeText.replace(/\{percent\}/g, String(totalPercent)) : `${totalPercent}% OFF • Coupon Applied`,
+          percent: totalPercent,
+          description: `Offer on this ground - ${totalPercent}% OFF`,
+          strip_style: stripStyle,
+        };
+      } else {
+        turfObj.offer_summary = null;
+      }
+      return turfObj;
     };
 
     const CITY_COORDS_FALLBACK = {
@@ -451,21 +492,22 @@ export const getAppHomeData = async (req, res) => {
     };
 
     const processedFeaturedTurfs = featuredTurfs.map(t => {
+      const turfObj = mapOfferSummary(t.toObject ? t.toObject() : t._doc);
       let featuredImage = "";
-      if (t.images && t.images.length > 0) {
-        featuredImage = processImage(t.images[0]);
-      } else if (t.sportConfigs && t.sportConfigs.length > 0) {
-        const firstConfigWithImage = t.sportConfigs.find(c => c.images && c.images.length > 0);
+      if (turfObj.images && turfObj.images.length > 0) {
+        featuredImage = processImage(turfObj.images[0]);
+      } else if (turfObj.sportConfigs && turfObj.sportConfigs.length > 0) {
+        const firstConfigWithImage = turfObj.sportConfigs.find(c => c.images && c.images.length > 0);
         if (firstConfigWithImage) {
           featuredImage = processImage(firstConfigWithImage.images[0]);
         }
       }
 
-      let lat = t.location?.coordinates?.lat;
-      let lng = t.location?.coordinates?.lng;
+      let lat = turfObj.location?.coordinates?.lat;
+      let lng = turfObj.location?.coordinates?.lng;
 
-      if ((!lat || !lng) && t.location?.city) {
-        const cityKey = t.location.city.toLowerCase().trim();
+      if ((!lat || !lng) && turfObj.location?.city) {
+        const cityKey = turfObj.location.city.toLowerCase().trim();
         const fallback = CITY_COORDS_FALLBACK[cityKey];
         if (fallback) {
           lat = fallback.lat;
@@ -479,9 +521,9 @@ export const getAppHomeData = async (req, res) => {
       }
 
       return {
-        ...t.toObject ? t.toObject() : t._doc,
+        ...turfObj,
         featuredImage,
-        images: (t.images || []).map(processImage),
+        images: (turfObj.images || []).map(processImage),
         distance: distance !== null ? Number(distance.toFixed(1)) : null
       };
     });

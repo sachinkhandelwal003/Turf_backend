@@ -324,6 +324,24 @@
               }
             },
             {
+              "name": "Update Turf Offer (Admin)",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "offer",
+                      "value": "{\n  \"isActive\": true,\n  \"percentage\": 20,\n  \"badgeText\": \"20% OFF • on this ground\",\n  \"description\": \"Offer on this ground - 20% OFF on evening slots\",\n  \"stripStyle\": \"green\",\n  \"targetType\": \"evening\",\n  \"startHour\": \"18:00\",\n  \"endHour\": \"22:00\"\n}",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/turfs/{{turf_id}}", "host": ["{{base_url}}"], "path": ["turfs", "{{turf_id}}"] }
+              }
+            },
+            {
               "name": "Update Turf Status",
               "request": {
                 "method": "PATCH",

@@ -17,12 +17,16 @@ const mapOfferSummary = (turfObj) => {
   let totalPercent = 0;
   let isOfferActive = false;
   let stripStyle = "green";
+  let badgeText = "";
 
   if (turfObj.offer && turfObj.offer.isActive) {
     totalPercent += Number(turfObj.offer.percentage || 0);
     isOfferActive = true;
     if (turfObj.offer.stripStyle === "white") {
       stripStyle = "white";
+    }
+    if (typeof turfObj.offer.badgeText === "string" && turfObj.offer.badgeText.trim()) {
+      badgeText = turfObj.offer.badgeText.trim();
     }
   }
 
@@ -32,11 +36,14 @@ const mapOfferSummary = (turfObj) => {
     if (turfObj.superAdminOffer.stripStyle === "green") {
       stripStyle = "green";
     }
+    if (!badgeText && typeof turfObj.superAdminOffer.badgeText === "string" && turfObj.superAdminOffer.badgeText.trim()) {
+      badgeText = turfObj.superAdminOffer.badgeText.trim();
+    }
   }
 
   if (isOfferActive && totalPercent > 0) {
     turfObj.offer_summary = {
-      badge_text: `${totalPercent}% OFF • Coupon Applied`,
+      badge_text: badgeText ? badgeText.replace(/\{percent\}/g, String(totalPercent)) : `${totalPercent}% OFF • Coupon Applied`,
       percent: totalPercent,
       description: `Offer on this ground - ${totalPercent}% OFF`,
       strip_style: stripStyle,
