@@ -450,6 +450,12 @@ export const getAppHomeData = async (req, res) => {
           description: `Offer on this ground - ${totalPercent}% OFF`,
           strip_style: stripStyle,
         };
+        if (turfObj.offer && turfObj.offer.isActive) {
+          turfObj.offer.badgeText = turfObj.offer_summary.badge_text;
+        }
+        if (turfObj.superAdminOffer && turfObj.superAdminOffer.isActive) {
+          turfObj.superAdminOffer.badgeText = turfObj.offer_summary.badge_text;
+        }
       } else {
         turfObj.offer_summary = null;
       }
